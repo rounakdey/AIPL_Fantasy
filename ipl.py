@@ -1,0 +1,281 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime, timezone
+from streamlit_autorefresh import st_autorefresh
+
+# Import our custom modules
+import utils
+import database as db
+import scraper
+
+# --- APP UI CONFIG ---
+st.set_page_config(page_title="IPL 2026 Season", layout="wide")
+
+if "refresh_enabled" not in st.session_state: st.session_state.refresh_enabled = True
+if "last_refresh" not in st.session_state: st.session_state.last_refresh = "Never"
+
+# Sidebar
+with st.sidebar:
+    st.title("IPL 2026")
+    st.metric("Current Time (GMT)", datetime.now(timezone.utc).strftime("%H:%M:%S GMT"))
+
+    schedule = utils.load_schedule()
+    selected_idx = st.selectbox("Select Match", options=schedule.index,
+                                format_func=lambda x: schedule.iloc[x]['display'])
+    match_info = schedule.iloc[selected_idx]
+    match_id = f"match_{selected_idx + 1}"
+    current_url = match_info['URL']
+
+    st.divider()
+    if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+
+    if not st.session_state.logged_in:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type='password')
+        if u and p:
+            hpw = utils.hash_password(p)
+            c1, c2 = st.columns(2)
+            if c1.button("Login"):
+                if db.check_login(u, hpw):
+                    st.session_state.logged_in, st.session_state.username = True, u
+                    st.rerun()
+                else:
+                    st.error("Wrong Login")
+            if c2.button("Join"):
+                if db.get_user_count(match_id) < 10:
+                    try:
+                        db.join_user(u, match_id, hpw)
+                        st.success("Joined successfully!")
+                    except:
+                        st.error("User exists/Error")
+                else:
+                    st.error("League Full")
+    else:
+        st.success(f"User: {st.session_state.username}")
+        if st.button("Logout"): st.session_state.logged_in = False; st.rerun()
+
+# Auto-Refresh Logic
+if st.session_state.refresh_enabled:
+    st_autorefresh(interval=60000, key="global_refresh")
+    st.session_state.live_df = scraper.get_live_stats(current_url)
+
+t1, t2, t3 = st.tabs(["🏆 Leaderboard", "🏏 My Selection", "⚔️ Matchups"])
+
+with t2:
+    if st.session_state.logged_in:
+        st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}")
+
+        # Display Rules
+        with st.expander("Show Selection Rules 📜"):
+            st.markdown("""
+            * **Total:** Exactly 11 players.
+            * **Team Limit:** Max 8 players from one team.
+            * **Overseas:** Max 4 overseas players (✈️).
+            * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
+            """)
+
+        sq = utils.load_squads()
+        ld = db.load_league_data(match_id)
+        my_data = ld.get(st.session_state.username, {"p": set(), "c": "-"})
+
+        t1_p = sq[sq['Team'] == match_info['Team 1']]
+        t2_p = sq[sq['Team'] == match_info['Team 2']]
+
+        selected_players = []
+        colL, colR = st.columns(2)
+
+        with colL:
+            st.subheader(match_info['Team 1'])
+            for _, row in t1_p.iterrows():
+                p_n = row['Player Name']
+                icon = " ✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
+                if st.checkbox(f"{p_n} ({row['Role']}){icon}", value=(p_n in my_data['p']), key=f"t1_{p_n}"):
+                    selected_players.append(p_n)
+
+        with colR:
+            st.subheader(match_info['Team 2'])
+            for _, row in t2_p.iterrows():
+                p_n = row['Player Name']
+                icon = " ✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
+                if st.checkbox(f"{p_n} ({row['Role']}){icon}", value=(p_n in my_data['p']), key=f"t2_{p_n}"):
+                    selected_players.append(p_n)
+
+        # --- VALIDATION LOGIC ---
+        st.divider()
+        sel_df = sq[sq['Player Name'].isin(selected_players)]
+
+        overseas_count = len(sel_df[sel_df['Category'] == 'Overseas'])
+        team1_count = len(sel_df[sel_df['Team'] == match_info['Team 1']])
+        team2_count = len(sel_df[sel_df['Team'] == match_info['Team 2']])
+
+        # Role Counts
+        n_bat = len(sel_df[sel_df['Role'] == 'Batsman'])
+        n_bowl = len(sel_df[sel_df['Role'] == 'Bowler'])
+        n_wk = len(sel_df[sel_df['Role'] == 'WK-Batsman'])
+        n_ar = len(sel_df[sel_df['Role'].isin(['Batting Allrounder', 'Bowling Allrounder'])])
+
+        # Validation Checks
+        valid_count = (len(selected_players) == 11)
+        valid_overseas = (overseas_count <= 4)
+        valid_teams = (team1_count <= 8 and team2_count <= 8)
+        valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
+
+        # UI Indicators
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Selected", f"{len(selected_players)}/11")
+        c2.metric("Overseas ✈️", f"{overseas_count}/4", delta=None if valid_overseas else "Too many",
+                  delta_color="inverse")
+        c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
+        c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
+
+        if valid_count and valid_overseas and valid_teams and valid_roles:
+            c1, c2 = st.columns(2)
+            with c1:
+                cap = st.selectbox("Select Captain (2x)", selected_players,
+                                   index=selected_players.index(my_data['c']) if my_data[
+                                                                                     'c'] in selected_players else 0)
+            with c2:
+                # Filter out the selected Captain from VC options
+                vc_options = [p for p in selected_players if p != cap]
+                vc = st.selectbox("Select Vice-Captain (1.5x)", vc_options,
+                                  index=vc_options.index(my_data['vc']) if my_data['vc'] in vc_options else 0)
+
+            if st.button("💾 Save My Team"):
+                db.save_user_team(st.session_state.username, match_id, selected_players, cap, vc)
+                st.success("Selection Locked!")
+        else:
+            errors = []
+            if not valid_count: errors.append("Select exactly 11 players.")
+            if not valid_overseas: errors.append("Max 4 Overseas players allowed.")
+            if not valid_teams: errors.append("Max 8 players from a single team.")
+            if not valid_roles: errors.append("Must have at least 1 Batsman, 1 Bowler, 1 WK, and 1 Allrounder.")
+
+            for err in errors:
+                st.warning(err)
+
+with t1:
+    st.header(f"Standings: {match_info['Team 1']} vs {match_info['Team 2']}")
+    cA, cB, cC = st.columns([1, 1, 1])
+    if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url)
+    st.session_state.refresh_enabled = cB.checkbox("Auto Refresh (60s)", value=st.session_state.refresh_enabled,
+                                                   key="c1")
+    cC.write(f"⏱️ Last Update: **{st.session_state.last_refresh}**")
+
+    live_df = st.session_state.get('live_df', pd.DataFrame())
+    if not live_df.empty:
+        p_map = live_df.set_index('Player')['Total Points'].to_dict()
+        ld = db.load_league_data(match_id)
+        if ld:
+            standings = []
+            for u, info in ld.items():
+                total_score = 0
+                for n in info['p']:
+                    p_pts = p_map.get(n, 0)
+                    if n == info['c']:
+                        total_score += p_pts * 2  # 2x for Captain
+                    elif n == info['vc']:
+                        total_score += p_pts * 1.5  # 1.5x for Vice-Captain
+                    else:
+                        total_score += p_pts
+
+                standings.append({
+                    "Manager": u,
+                    "Score": int(total_score),
+                    "Captain": info['c'],
+                    "Vice-Captain": info['vc']
+                })
+            st.table(pd.DataFrame(standings).sort_values(by="Score", ascending=False))
+        st.dataframe(live_df.sort_values(by="Total Points", ascending=False), width='stretch', hide_index=True)
+
+    st.divider()
+    with st.expander("View Scoring System 📈"):
+        st.table(pd.DataFrame([
+            {"Category": "Batting", "Action": "Run / 4 / 6", "Points": "+1 / +2 / +3"},
+            {"Category": "Batting", "Action": "Milestone Bonus", "Points": "+10 every 25 runs"},
+            {"Category": "Batting", "Action": "Strike-rate Bonus", "Points": "Runs - Balls"},
+            {"Category": "Batting", "Action": "Duck", "Points": "-10"},
+            {"Category": "Bowling", "Action": "Wicket / Maiden", "Points": "+25 / +15"},
+            {"Category": "Bowling", "Action": "Economy Bonus", "Points": "(Balls x 2) - Runs"},
+            {"Category": "Bowling", "Action": "Hauls (3/5/7)", "Points": "+25 / +50 / +100"},
+            {"Category": "Fielding", "Action": "Catch / Stump / Run-out", "Points": "+15 / +10 / +10"},
+            {"Category": "Multipliers", "Action": "Captain", "Points": "2x Total Points"},
+            {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"}
+        ]))
+
+with t3:
+    st.header("Matchups Comparison")
+    ld = db.load_league_data(match_id)
+    mgrs = list(ld.keys())
+
+    if len(mgrs) >= 2:
+        col_sel1, col_sel2 = st.columns(2)
+        m1 = col_sel1.selectbox("Friend 1", mgrs, index=0)
+        m2 = col_sel2.selectbox("Friend 2", mgrs, index=1)
+
+        # Get Live Points Map
+        live_df = st.session_state.get('live_df', pd.DataFrame())
+        p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
+
+
+        # Helper to calculate total match score
+        def calc_score(user):
+            pks, c, vc = ld[user]['p'], ld[user]['c'], ld[user]['vc']
+            score = 0
+            for p in pks:
+                pts = p_map.get(p, 0)
+                if p == c:
+                    score += pts * 2
+                elif p == vc:
+                    score += pts * 1.5
+                else:
+                    score += pts
+            return int(score)
+
+
+        score1, score2 = calc_score(m1), calc_score(m2)
+        diff = abs(score1 - score2)
+
+        # Display Difference
+        st.divider()
+        if score1 > score2:
+            st.subheader(f"🏆 {m1} is ahead of {m2} by {diff} points")
+        elif score2 > score1:
+            st.subheader(f"🏆 {m2} is ahead of {m1} by {diff} points")
+        else:
+            st.subheader("🤝 Both teams are currently tied!")
+        st.divider()
+
+        # Define Colors
+        st.markdown("""
+            <style>
+                .common-p { color: #00d4ff; font-weight: bold; } /* Cyan for common */
+                .unique-p { color: #ffcc00; font-weight: bold; } /* Gold for unique */
+                .role-header { font-size: 1.1em; border-bottom: 1px solid #444; margin-bottom: 10px; }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # Identify Common/Unique non-C/VC players
+        s1, c1, vc1 = ld[m1]['p'], ld[m1]['c'], ld[m1]['vc']
+        s2, c2, vc2 = ld[m2]['p'], ld[m2]['c'], ld[m2]['vc']
+
+        # Players to compare (excluding their specific C/VC roles)
+        comp1 = s1 - {c1, vc1}
+        comp2 = s2 - {c2, vc2}
+        common = comp1.intersection(comp2)
+
+        cA, cB = st.columns(2)
+        for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
+            with col:
+                st.markdown(f"<div class='role-header'>{manager}'s Squad</div>", unsafe_allow_html=True)
+                st.write(f"⭐ **Captain:** {c} ({int(p_map.get(c, 0) * 2)} pts)")
+                st.write(f"🎖️ **Vice-Captain:** {vc} ({int(p_map.get(vc, 0) * 1.5)} pts)")
+
+                # Sort and display remaining players
+                for p in sorted(list(pks - {c, vc})):
+                    pts = int(p_map.get(p, 0))
+                    # Determine if player is common or unique
+                    cls = "common-p" if p in other_pks else "unique-p"
+                    symbol = "●" if p in other_pks else "○"
+                    st.markdown(f"<span class='{cls}'>{symbol} {p}: {pts} pts</span>", unsafe_allow_html=True)
+    else:
+        st.info("Need at least 2 users to compare matchups.")

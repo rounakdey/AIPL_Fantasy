@@ -1,0 +1,21 @@
+-- 1. Drop old tables to start fresh with Match IDs
+DROP TABLE IF EXISTS selections;
+DROP TABLE IF EXISTS users;
+
+-- 2. Recreate users table (stores match-specific captains)
+CREATE TABLE users (
+    username TEXT,
+    match_id TEXT,
+    password TEXT, -- Password only needs to be stored once, but match_id identifies the entry
+    captain TEXT,
+    vice_captain TEXT,
+    PRIMARY KEY (username, match_id)
+);
+
+-- 3. Recreate selections table (stores match-specific players)
+CREATE TABLE selections (
+    id SERIAL PRIMARY KEY,
+    username TEXT,
+    match_id TEXT,
+    player_name TEXT
+);
