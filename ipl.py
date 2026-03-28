@@ -36,20 +36,26 @@ with st.sidebar:
             hpw = utils.hash_password(p)
             c1, c2 = st.columns(2)
             if c1.button("Login"):
-                if db.check_login(u, hpw):
-                    st.session_state.logged_in, st.session_state.username = True, u
+                user_data = db.check_login(u, hpw)
+                if user_data:
+                    st.session_state.logged_in = True
+                    st.session_state.username = u
                     st.rerun()
                 else:
-                    st.error("Wrong Login")
-            if c2.button("Join"):
-                if db.get_user_count(match_id) < 10:
+                    st.error("Invalid credentials")
+            if c2.button("Join League"):
+                # Check global count instead of match-specific count
+                if db.get_total_user_count() < 10:
                     try:
-                        db.join_user(u, match_id, hpw)
-                        st.success("Joined successfully!")
-                    except:
-                        st.error("User exists/Error")
+                        db.join_league_all_matches(u, hpw)
+                        st.success(f"Welcome {u}! Account Created Successfully.")
+                        st.session_state.logged_in = True
+                        st.session_state.username = u
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Join failed: {e}")
                 else:
-                    st.error("League Full")
+                    st.error("League is full! (Max 10 players)")
     else:
         st.success(f"User: {st.session_state.username}")
         if st.button("Logout"): st.session_state.logged_in = False; st.rerun()
