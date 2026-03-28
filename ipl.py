@@ -76,7 +76,7 @@ with t2:
 
         sq = utils.load_squads()
         ld = db.load_league_data(match_id)
-        my_data = ld.get(st.session_state.username, {"p": set(), "c": "-"})
+        my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
 
         t1_p = sq[sq['Team'] == match_info['Team 1']]
         t2_p = sq[sq['Team'] == match_info['Team 2']]
