@@ -42,18 +42,28 @@ def get_live_stats(url):
                 name = clean_name(row.find('a', class_='text-cbTextLink').text.strip())
                 d_div = cols[0].find('div', class_='text-cbTxtSec')
                 if d_div:
-                    d_text = d_div.text.strip()
-                    if f"{name}_{d_text}" not in processed:
-                        for f in parse_fielding(d_text):
+                    raw_d_text = d_div.text.strip()
+                    d_text_lower = raw_d_text.lower()  # Use this for the Duck check
+
+                    if f"{name}_{d_text_lower}" not in processed:
+                        for f in parse_fielding(raw_d_text):
                             f_name = f['name']
                             fielding_pts[f_name] = fielding_pts.get(f_name, 0) + SCORING.get(f['type'], 0)
-                        processed.add(f"{name}_{d_text}")
+                        processed.add(f"{name}_{d_text_lower}")
+                else:
+                    d_text_lower = "not out"
+
+                # Now use the lower version for the duck check
+                is_not_out = any(
+                    phrase in d_text_lower for phrase in ["not out", "retired hurt", "absent out", "absent", "hurt"])
+                # Note: "retired out" DOES count as a dismissal/duck
                 if name not in unique_batting:
                     runs, balls, fours, sixes = int(cols[1].text), int(cols[2].text), int(cols[3].text), int(cols[4].text)
                     b_pts = (runs * SCORING['run']) + (fours * SCORING['four']) + (sixes * SCORING['six'])
                     b_pts += (runs // 25) * 10        # Milestone: +10 every 25 runs
                     b_pts += (runs - balls)           # Strike-rate: Runs - Balls
-                    if runs == 0: b_pts += SCORING['duck']
+                    if runs == 0 and not is_not_out:
+                        b_pts += SCORING['duck']
                     unique_batting[name] = {"BatPts": b_pts}
             except: continue
 
@@ -74,9 +84,54 @@ def get_live_stats(url):
             except: continue
 
         all_p = set(list(unique_batting.keys()) + list(unique_bowling.keys()) + list(fielding_pts.keys()))
-        merged = [{"Player": p, "Batting": unique_batting.get(p, {'BatPts': 0})['BatPts'],
-                   "Bowling": unique_bowling.get(p, {'BowlPts': 0})['BowlPts'], "Fielding": fielding_pts.get(p, 0),
-                   "Total Points": unique_batting.get(p, {'BatPts': 0})['BatPts'] +
-                                   unique_bowling.get(p, {'BowlPts': 0})['BowlPts'] + fielding_pts.get(p, 0)} for p in all_p]
+        potm_name = get_potm(url)
+        merged = []
+        for p in all_p:
+            bat = unique_batting.get(p, {'BatPts': 0})['BatPts']
+            bowl = unique_bowling.get(p, {'BowlPts': 0})['BowlPts']
+            fld = fielding_pts.get(p, 0)
+
+            total = bat + bowl + fld
+
+            # 3. Add POTM Bonus
+            potm_bonus = 0
+            if potm_name and p.lower() == potm_name.lower():
+                potm_bonus = 25
+                total += potm_bonus
+
+            merged.append({
+                "Player": p,
+                "Batting": bat,
+                "Bowling": bowl,
+                "Fielding": fld,
+                "POTM": potm_bonus,  # Added column for transparency
+                "Total Points": total
+            })
         return pd.DataFrame(merged)
     except: return pd.DataFrame()
+
+
+def get_potm(scorecard_url):
+    """
+    Swaps URL to /live-cricket-scores/ and looks for the POTM name.
+    Returns the name as a string or None if not found/match not over.
+    """
+    try:
+        # Generate the 'scores' URL from the 'scorecard' URL
+        scores_url = scorecard_url.replace("/live-cricket-scorecard/", "/live-cricket-scores/")
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        r = requests.get(scores_url, headers=headers, timeout=5)
+        soup = BeautifulSoup(r.text, 'html.parser')
+
+        # Look for the DIV containing "PLAYER OF THE MATCH"
+        # Based on your HTML: it's inside a div with text "PLAYER OF THE MATCH"
+        potm_label = soup.find("div", text=re.compile("PLAYER OF THE MATCH", re.IGNORECASE))
+        if potm_label:
+            # The name is usually in the next sibling span or a link nearby
+            # Based on your snippet: <span>Jacob Duffy</span> is inside an <a> tag
+            potm_container = potm_label.find_next("span")
+            if potm_container:
+                return clean_name(potm_container.text)
+    except:
+        pass  # "Be chill" - if the page isn't ready or layout is different, return None
+    return None

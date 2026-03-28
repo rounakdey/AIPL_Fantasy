@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from streamlit_autorefresh import st_autorefresh
 
 # Import our custom modules
@@ -14,17 +14,42 @@ st.set_page_config(page_title="IPL 2026 Season", layout="wide")
 if "refresh_enabled" not in st.session_state: st.session_state.refresh_enabled = True
 if "last_refresh" not in st.session_state: st.session_state.last_refresh = "Never"
 
+# --- TIME LOGIC ---
+now_gmt = datetime.now(timezone.utc)
+schedule = utils.load_schedule()
+
+# Cold Start Match Selection (Current time minus 6 hours)
+if "selected_idx" not in st.session_state:
+    target_time = now_gmt - timedelta(hours=6)
+    # Find the first match where match_dt >= target_time
+    future_matches = schedule[schedule['match_dt'] >= target_time]
+
+    if not future_matches.empty:
+        st.session_state.selected_idx = int(future_matches.index[0])
+    else:
+        st.session_state.selected_idx = 0
+
 # Sidebar
 with st.sidebar:
     st.title("IPL 2026")
-    st.metric("Current Time (GMT)", datetime.now(timezone.utc).strftime("%H:%M:%S GMT"))
+    st.metric("Current Time (GMT)", now_gmt.strftime("%H:%M:%S GMT"))
 
-    schedule = utils.load_schedule()
-    selected_idx = st.selectbox("Select Match", options=schedule.index,
-                                format_func=lambda x: schedule.iloc[x]['display'])
+    # Selectbox uses session state for persistence but allows user change
+    selected_idx = st.selectbox(
+        "Select Match",
+        options=schedule.index,
+        index=st.session_state.selected_idx,
+        format_func=lambda x: schedule.iloc[x]['display'],
+        key="match_selector"
+    )
+    # Update state only if user manually changes it
+    st.session_state.selected_idx = selected_idx
+
     match_info = schedule.iloc[selected_idx]
     match_id = f"match_{selected_idx + 1}"
     current_url = match_info['URL']
+    match_start_gmt = match_info['match_dt']
+    is_match_started = now_gmt >= match_start_gmt
 
     st.divider()
     if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -65,7 +90,13 @@ if st.session_state.refresh_enabled:
     st_autorefresh(interval=60000, key="global_refresh")
     st.session_state.live_df = scraper.get_live_stats(current_url)
 
-t1, t2, t3 = st.tabs(["🏆 Leaderboard", "🏏 My Selection", "⚔️ Matchups"])
+tab_list = ["🏆 Leaderboard", "🏏 My Selection"]
+if is_match_started:
+    tab_list.append("⚔️ Matchups")
+tabs = st.tabs(tab_list)
+t1, t2 = tabs[0], tabs[1]
+if is_match_started:
+    t3 = tabs[2]
 
 with t2:
     if st.session_state.logged_in:
@@ -158,6 +189,18 @@ with t2:
 
             for err in errors:
                 st.warning(err)
+    else:
+        st.subheader("🏏 Ready to build your XI?")
+        st.info("Please **Log In** or **Join** via the sidebar to select your team for this match.")
+
+        # Optional: Add a nice visual or tip for logged-out users
+        st.markdown("""
+                **Selection Rules Preview:**
+                * Pick exactly 11 players.
+                * Max 8 players from one team.
+                * Max 4 Overseas players (✈️).
+                * Must include: 1 WK, 1 Allrounder, 1 Batsman, 1 Bowler.
+                """)
 
 with t1:
     st.header(f"Standings: {match_info['Team 1']} vs {match_info['Team 2']}")
@@ -168,30 +211,51 @@ with t1:
     cC.write(f"⏱️ Last Update: **{st.session_state.last_refresh}**")
 
     live_df = st.session_state.get('live_df', pd.DataFrame())
-    if not live_df.empty:
-        p_map = live_df.set_index('Player')['Total Points'].to_dict()
-        ld = db.load_league_data(match_id)
-        if ld:
-            standings = []
-            for u, info in ld.items():
-                total_score = 0
+    ld = db.load_league_data(match_id)
+    if ld:
+        standings = []
+        # Create a points map if live data exists, else empty dict
+        p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
+
+        for u, info in ld.items():
+            # --- NEW FILTER LOGIC ---
+            # Skip this manager if they haven't picked a captain yet
+            if info['c'] == "-":
+                continue
+
+            # Calculate score only if p_map is not empty, otherwise default to 0
+            total_score = 0
+            if p_map:
                 for n in info['p']:
                     p_pts = p_map.get(n, 0)
                     if n == info['c']:
-                        total_score += p_pts * 2  # 2x for Captain
+                        total_score += p_pts * 2
                     elif n == info['vc']:
-                        total_score += p_pts * 1.5  # 1.5x for Vice-Captain
+                        total_score += p_pts * 1.5
                     else:
                         total_score += p_pts
 
-                standings.append({
-                    "Manager": u,
-                    "Score": int(total_score),
-                    "Captain": info['c'],
-                    "Vice-Captain": info['vc']
-                })
+            # Privacy: Hide C/VC if match hasn't started
+            standings.append({
+                "Manager": u,
+                "Score": int(total_score),
+                "Captain": info['c'] if is_match_started else "🔒 Hidden",
+                "Vice-Captain": info['vc'] if is_match_started else "🔒 Hidden"
+            })
+
+        # Only show the table if we have at least one active manager
+        if standings:
             st.table(pd.DataFrame(standings).sort_values(by="Score", ascending=False))
+        else:
+            st.info("No managers have locked in their teams for this match yet.")
+    else:
+        st.info("No registered managers found in the league.")
+
+        # Show the player points table only if it actually has data
+    if not live_df.empty:
         st.dataframe(live_df.sort_values(by="Total Points", ascending=False), width='stretch', hide_index=True)
+    else:
+        st.info("Waiting for live match data to appear on Cricbuzz...")
 
     st.divider()
     with st.expander("View Scoring System 📈"):
@@ -204,84 +268,89 @@ with t1:
             {"Category": "Bowling", "Action": "Economy Bonus", "Points": "(Balls x 2) - Runs"},
             {"Category": "Bowling", "Action": "Hauls (3/5/7)", "Points": "+25 / +50 / +100"},
             {"Category": "Fielding", "Action": "Catch / Stump / Run-out", "Points": "+15 / +10 / +10"},
+            {"Category": "Bonus", "Action": "Player of the Match", "Points": "+25"},
             {"Category": "Multipliers", "Action": "Captain", "Points": "2x Total Points"},
             {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"}
         ]))
 
-with t3:
-    st.header("Matchups Comparison")
-    ld = db.load_league_data(match_id)
-    mgrs = list(ld.keys())
+if is_match_started:
+    with t3:
+        st.header("Matchups Comparison")
+        ld = db.load_league_data(match_id)
+        mgrs = list(ld.keys())
 
-    if len(mgrs) >= 2:
-        col_sel1, col_sel2 = st.columns(2)
-        m1 = col_sel1.selectbox("Friend 1", mgrs, index=0)
-        m2 = col_sel2.selectbox("Friend 2", mgrs, index=1)
+        if len(mgrs) >= 2:
+            col_sel1, col_sel2 = st.columns(2)
+            m1 = col_sel1.selectbox("Friend 1", mgrs, index=0)
+            m2 = col_sel2.selectbox("Friend 2", mgrs, index=1)
 
-        # Get Live Points Map
-        live_df = st.session_state.get('live_df', pd.DataFrame())
-        p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
-
-
-        # Helper to calculate total match score
-        def calc_score(user):
-            pks, c, vc = ld[user]['p'], ld[user]['c'], ld[user]['vc']
-            score = 0
-            for p in pks:
-                pts = p_map.get(p, 0)
-                if p == c:
-                    score += pts * 2
-                elif p == vc:
-                    score += pts * 1.5
-                else:
-                    score += pts
-            return int(score)
+            # Get Live Points Map
+            live_df = st.session_state.get('live_df', pd.DataFrame())
+            p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
 
 
-        score1, score2 = calc_score(m1), calc_score(m2)
-        diff = abs(score1 - score2)
+            # Helper to calculate total match score
+            def calc_score(user):
+                pks, c, vc = ld[user]['p'], ld[user]['c'], ld[user]['vc']
+                score = 0
+                for p in pks:
+                    pts = p_map.get(p, 0)
+                    if p == c:
+                        score += pts * 2
+                    elif p == vc:
+                        score += pts * 1.5
+                    else:
+                        score += pts
+                return int(score)
 
-        # Display Difference
-        st.divider()
-        if score1 > score2:
-            st.subheader(f"🏆 {m1} is ahead of {m2} by {diff} points")
-        elif score2 > score1:
-            st.subheader(f"🏆 {m2} is ahead of {m1} by {diff} points")
+
+            score1, score2 = calc_score(m1), calc_score(m2)
+            diff = abs(score1 - score2)
+
+            # Display Difference
+            st.divider()
+            if score1 > score2:
+                st.subheader(f"🏆 {m1} is ahead of {m2} by {diff} points")
+            elif score2 > score1:
+                st.subheader(f"🏆 {m2} is ahead of {m1} by {diff} points")
+            else:
+                st.subheader("🤝 Both teams are currently tied!")
+            st.divider()
+
+            # Define Colors
+            st.markdown("""
+                <style>
+                    .common-p { color: #00d4ff; font-weight: bold; } /* Cyan for common */
+                    .unique-p { color: #ffcc00; font-weight: bold; } /* Gold for unique */
+                    .role-header { font-size: 1.1em; border-bottom: 1px solid #444; margin-bottom: 10px; }
+                </style>
+            """, unsafe_allow_html=True)
+
+            # Identify Common/Unique non-C/VC players
+            s1, c1, vc1 = ld[m1]['p'], ld[m1]['c'], ld[m1]['vc']
+            s2, c2, vc2 = ld[m2]['p'], ld[m2]['c'], ld[m2]['vc']
+
+            # Players to compare (excluding their specific C/VC roles)
+            comp1 = s1 - {c1, vc1}
+            comp2 = s2 - {c2, vc2}
+            common = comp1.intersection(comp2)
+
+            cA, cB = st.columns(2)
+            for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
+                with col:
+                    st.markdown(f"<div class='role-header'>{manager}'s Squad</div>", unsafe_allow_html=True)
+                    st.write(f"⭐ **Captain:** {c} ({int(p_map.get(c, 0) * 2)} pts)")
+                    st.write(f"🎖️ **Vice-Captain:** {vc} ({int(p_map.get(vc, 0) * 1.5)} pts)")
+
+                    # Sort and display remaining players
+                    for p in sorted(list(pks - {c, vc})):
+                        pts = int(p_map.get(p, 0))
+                        # Determine if player is common or unique
+                        cls = "common-p" if p in other_pks else "unique-p"
+                        symbol = "●" if p in other_pks else "○"
+                        st.markdown(f"<span class='{cls}'>{symbol} {p}: {pts} pts</span>", unsafe_allow_html=True)
         else:
-            st.subheader("🤝 Both teams are currently tied!")
-        st.divider()
-
-        # Define Colors
-        st.markdown("""
-            <style>
-                .common-p { color: #00d4ff; font-weight: bold; } /* Cyan for common */
-                .unique-p { color: #ffcc00; font-weight: bold; } /* Gold for unique */
-                .role-header { font-size: 1.1em; border-bottom: 1px solid #444; margin-bottom: 10px; }
-            </style>
-        """, unsafe_allow_html=True)
-
-        # Identify Common/Unique non-C/VC players
-        s1, c1, vc1 = ld[m1]['p'], ld[m1]['c'], ld[m1]['vc']
-        s2, c2, vc2 = ld[m2]['p'], ld[m2]['c'], ld[m2]['vc']
-
-        # Players to compare (excluding their specific C/VC roles)
-        comp1 = s1 - {c1, vc1}
-        comp2 = s2 - {c2, vc2}
-        common = comp1.intersection(comp2)
-
-        cA, cB = st.columns(2)
-        for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
-            with col:
-                st.markdown(f"<div class='role-header'>{manager}'s Squad</div>", unsafe_allow_html=True)
-                st.write(f"⭐ **Captain:** {c} ({int(p_map.get(c, 0) * 2)} pts)")
-                st.write(f"🎖️ **Vice-Captain:** {vc} ({int(p_map.get(vc, 0) * 1.5)} pts)")
-
-                # Sort and display remaining players
-                for p in sorted(list(pks - {c, vc})):
-                    pts = int(p_map.get(p, 0))
-                    # Determine if player is common or unique
-                    cls = "common-p" if p in other_pks else "unique-p"
-                    symbol = "●" if p in other_pks else "○"
-                    st.markdown(f"<span class='{cls}'>{symbol} {p}: {pts} pts</span>", unsafe_allow_html=True)
-    else:
-        st.info("Need at least 2 users to compare matchups.")
+            st.info("Need at least 2 users to compare matchups.")
+else:
+    # Inform users why the tab is missing if they are looking for it
+    st.sidebar.info("⚔️ Matchups will unlock once the match starts.")
