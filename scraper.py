@@ -55,7 +55,7 @@ def get_live_stats(url):
 
                 # Now use the lower version for the duck check
                 is_not_out = any(
-                    phrase in d_text_lower for phrase in ["not out", "retired hurt", "absent out", "absent", "hurt"])
+                    phrase in d_text_lower for phrase in ["batting", "not out", "retired hurt", "absent out", "absent", "hurt"])
                 # Note: "retired out" DOES count as a dismissal/duck
                 if name not in unique_batting:
                     runs, balls, fours, sixes = int(cols[1].text), int(cols[2].text), int(cols[3].text), int(cols[4].text)

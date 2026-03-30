@@ -281,8 +281,8 @@ if is_match_started:
 
         if len(mgrs) >= 2:
             col_sel1, col_sel2 = st.columns(2)
-            m1 = col_sel1.selectbox("Friend 1", mgrs, index=0)
-            m2 = col_sel2.selectbox("Friend 2", mgrs, index=1)
+            m1 = col_sel1.selectbox("Manager 1", mgrs, index=0)
+            m2 = col_sel2.selectbox("Manager 2", mgrs, index=1)
 
             # Get Live Points Map
             live_df = st.session_state.get('live_df', pd.DataFrame())
