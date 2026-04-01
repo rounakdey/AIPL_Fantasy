@@ -100,6 +100,37 @@ if is_match_started:
 
 with t2:
     if st.session_state.logged_in:
+        # --- MOBILE COMPACT CSS ---
+        st.markdown("""
+                    <style>
+                        /* Force columns to stay side-by-side on mobile */
+                        [data-testid="column"] {
+                            width: calc(50% - 1rem) !important;
+                            flex: 1 1 calc(50% - 1rem) !important;
+                            min-width: calc(50% - 1rem) !important;
+                        }
+                        /* Tighten the spacing between checkboxes */
+                        .stCheckbox {
+                            margin-bottom: -15px;
+                        }
+                        /* Font size adjustment for names */
+                        .stCheckbox label p {
+                            font-size: 14px !important;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
+
+        # Mapping long roles to icons for space
+        role_icons = {
+            "Batsman": "🏏",
+            "Bowler": "⚾",
+            "WK-Batsman": "🧤",
+            "Batting Allrounder": "🏏⚾",
+            "Bowling Allrounder": "⚾🏏"
+        }
         st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}")
 
         # Display Rules
@@ -120,21 +151,21 @@ with t2:
         selected_players = []
         colL, colR = st.columns(2)
 
-        with colL:
-            st.subheader(match_info['Team 1'])
-            for _, row in t1_p.iterrows():
-                p_n = row['Player Name']
-                icon = " ✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
-                if st.checkbox(f"{p_n} ({row['Role']}){icon}", value=(p_n in my_data['p']), key=f"t1_{p_n}"):
-                    selected_players.append(p_n)
+        # Display Columns with Icons
+        for col, team_df, team_name in [(colL, t1_p, match_info['Team 1']), (colR, t2_p, match_info['Team 2'])]:
+            with col:
+                st.subheader(team_name[:3].upper())  # Shorten name (e.g., RCB)
+                for _, row in team_df.iterrows():
+                    p_n = row['Player Name']
+                    role = row['Role']
+                    icon = role_icons.get(role, "")
+                    os_icon = "✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
 
-        with colR:
-            st.subheader(match_info['Team 2'])
-            for _, row in t2_p.iterrows():
-                p_n = row['Player Name']
-                icon = " ✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
-                if st.checkbox(f"{p_n} ({row['Role']}){icon}", value=(p_n in my_data['p']), key=f"t2_{p_n}"):
-                    selected_players.append(p_n)
+                    # Create a very compact label: Icon + ShortName + OS
+                    label = f"{icon}{p_n}{os_icon}"
+
+                    if st.checkbox(label, value=(p_n in my_data['p']), key=f"sel_{team_name}_{p_n}"):
+                        selected_players.append(p_n)
 
         # --- VALIDATION LOGIC ---
         st.divider()
@@ -197,7 +228,6 @@ with t2:
                 **Selection Rules Preview:**
                 * Pick exactly 11 players.
                 * Max 8 players from one team.
-                * Max 4 Overseas players (✈️).
                 * Must include: 1 WK, 1 Allrounder, 1 Batsman, 1 Bowler.
                 """)
 
@@ -275,6 +305,32 @@ with t1:
 if is_match_started:
     with t3:
         st.header("Matchups Comparison")
+
+        # --- MOBILE COMPACT CSS ---
+        st.markdown("""
+                <style>
+                    /* Force columns to stay side-by-side even on mobile */
+                    [data-testid="column"] {
+                        width: calc(50% - 0.5rem) !important;
+                        flex: 1 1 calc(50% - 0.5rem) !important;
+                        min-width: calc(50% - 0.5rem) !important;
+                    }
+                    /* Styling for common and unique players */
+                    .common-p { color: #00d4ff; font-weight: bold; font-size: 13px; margin-bottom: 2px; display: block; }
+                    .unique-p { color: #ffcc00; font-weight: bold; font-size: 13px; margin-bottom: 2px; display: block; }
+                    /* Header for manager name */
+                    .mgr-head { 
+                        font-size: 15px; 
+                        border-bottom: 1px solid #444; 
+                        margin-bottom: 5px; 
+                        font-weight: bold; 
+                        text-transform: uppercase;
+                    }
+                    /* Tighten spacing for st.write elements */
+                    .stMarkdown div p { margin-bottom: 2px !important; font-size: 13px !important; }
+                </style>
+            """, unsafe_allow_html=True)
+
         ld = db.load_league_data(match_id)
         mgrs = list(ld.keys())
 
@@ -306,48 +362,29 @@ if is_match_started:
             score1, score2 = calc_score(m1), calc_score(m2)
             diff = abs(score1 - score2)
 
-            # Display Difference
-            st.divider()
-            if score1 > score2:
-                st.subheader(f"🏆 {m1} is ahead of {m2} by {diff} points")
-            elif score2 > score1:
-                st.subheader(f"🏆 {m2} is ahead of {m1} by {diff} points")
-            else:
-                st.subheader("🤝 Both teams are currently tied!")
-            st.divider()
+            # Compact Difference Banner
+            st.info(f"🏆 {'Tie' if score1 == score2 else f'{(m1 if score1 > score2 else m2)} leads by {diff} pts'}")
 
-            # Define Colors
-            st.markdown("""
-                <style>
-                    .common-p { color: #00d4ff; font-weight: bold; } /* Cyan for common */
-                    .unique-p { color: #ffcc00; font-weight: bold; } /* Gold for unique */
-                    .role-header { font-size: 1.1em; border-bottom: 1px solid #444; margin-bottom: 10px; }
-                </style>
-            """, unsafe_allow_html=True)
 
             # Identify Common/Unique non-C/VC players
             s1, c1, vc1 = ld[m1]['p'], ld[m1]['c'], ld[m1]['vc']
             s2, c2, vc2 = ld[m2]['p'], ld[m2]['c'], ld[m2]['vc']
 
-            # Players to compare (excluding their specific C/VC roles)
-            comp1 = s1 - {c1, vc1}
-            comp2 = s2 - {c2, vc2}
-            common = comp1.intersection(comp2)
-
             cA, cB = st.columns(2)
+            # Comparison loop
             for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
                 with col:
-                    st.markdown(f"<div class='role-header'>{manager}'s Squad</div>", unsafe_allow_html=True)
-                    st.write(f"⭐ **Captain:** {c} ({int(p_map.get(c, 0) * 2)} pts)")
-                    st.write(f"🎖️ **Vice-Captain:** {vc} ({int(p_map.get(vc, 0) * 1.5)} pts)")
+                    st.markdown(f"<div class='mgr-head'>{manager}</div>", unsafe_allow_html=True)
+                    st.write(f"⭐ **C:** {c} ({int(p_map.get(c, 0) * 2)})")
+                    st.write(f"🎖️ **VC:** {vc} ({int(p_map.get(vc, 0) * 1.5)})")
 
-                    # Sort and display remaining players
+                    # Display remaining players
                     for p in sorted(list(pks - {c, vc})):
                         pts = int(p_map.get(p, 0))
-                        # Determine if player is common or unique
                         cls = "common-p" if p in other_pks else "unique-p"
                         symbol = "●" if p in other_pks else "○"
-                        st.markdown(f"<span class='{cls}'>{symbol} {p}: {pts} pts</span>", unsafe_allow_html=True)
+                        # Use div with display:block (via CSS) to ensure vertical stacking
+                        st.markdown(f"<div class='{cls}'>{symbol} {p}: {pts}</div>", unsafe_allow_html=True)
         else:
             st.info("Need at least 2 users to compare matchups.")
 else:
