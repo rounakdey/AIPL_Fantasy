@@ -107,7 +107,6 @@ with t2:
             st.markdown("""
             * **Total:** Exactly 11 players.
             * **Team Limit:** Max 8 players from one team.
-            * **Overseas:** Max 4 overseas players (✈️).
             * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
             """)
 
@@ -153,14 +152,14 @@ with t2:
 
         # Validation Checks
         valid_count = (len(selected_players) == 11)
-        valid_overseas = (overseas_count <= 4)
+        valid_overseas = (overseas_count <= 11)
         valid_teams = (team1_count <= 8 and team2_count <= 8)
         valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
 
         # UI Indicators
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Selected", f"{len(selected_players)}/11")
-        c2.metric("Overseas ✈️", f"{overseas_count}/4", delta=None if valid_overseas else "Too many",
+        c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
                   delta_color="inverse")
         c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
         c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
