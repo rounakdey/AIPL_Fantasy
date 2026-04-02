@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 from datetime import datetime, timezone, timedelta
 from streamlit_autorefresh import st_autorefresh
 import extra_streamlit_components as stx
@@ -12,9 +13,13 @@ import scraper
 # Initialize Cookie Manager at the very top of the script
 cookie_manager = stx.CookieManager()
 
+# Initialize a flag to track manual logouts
+if 'manual_logout' not in st.session_state:
+    st.session_state.manual_logout = False
+
 # Define a function to handle cookie-based login
 def check_cookies():
-    if not st.session_state.get('logged_in'):
+    if not st.session_state.get('logged_in') and not st.session_state.manual_logout:
         saved_user = cookie_manager.get('ipl_username')
         saved_token = cookie_manager.get('ipl_token')  # This would be the hashed password
 
@@ -92,6 +97,7 @@ with st.sidebar:
                 if user_data:
                     st.session_state.logged_in = True
                     st.session_state.username = u
+                    st.session_state.manual_logout = False  # Reset the flag
 
                     if remember_me:
                         # Add unique 'key' arguments to avoid the DuplicateElementKey error
@@ -103,7 +109,8 @@ with st.sidebar:
                         cookie_manager.set('ipl_token', hpw,
                                            expires_at=datetime.now() + timedelta(days=60),
                                            key="set_token_cookie")
-
+                        # CRITICAL: Wait 0.5 seconds for the browser to catch up
+                        time.sleep(0.5)
                     st.rerun()
                 else:
                     st.error("Invalid credentials")
@@ -134,11 +141,24 @@ with st.sidebar:
         # --- LOGGED IN VIEW ---
         st.success(f"User: {st.session_state.username}")
         if st.button("Logout"):
-            # Clear session and cookies on logout
+            # 1. Clear session state immediately
+            st.session_state.manual_logout = True
             st.session_state.logged_in = False
             st.session_state.username = None
-            cookie_manager.delete('ipl_username')
-            cookie_manager.delete('ipl_token')
+
+            # 2. Handle Cookie Deletion (with the KeyError fix)
+            try:
+                if cookie_manager.get('ipl_username'):
+                    cookie_manager.delete('ipl_username', key="delete_user_cookie")
+                if cookie_manager.get('ipl_token'):
+                    cookie_manager.delete('ipl_token', key="delete_token_cookie")
+
+                # 3. Give the browser a moment to process the cookie deletion
+                time.sleep(0.5)
+            except:
+                pass  # Fail gracefully if cookies were already gone
+
+            # 4. Force an immediate full-page refresh
             st.rerun()
 
 # Auto-Refresh Logic
@@ -156,125 +176,144 @@ if is_match_started:
 
 with t2:
     if st.session_state.logged_in:
-        # --- MOBILE COMPACT CSS ---
-        st.markdown("""
-                    <style>
-                        /* Force columns to stay side-by-side on mobile */
-                        [data-testid="column"] {
-                            width: calc(50% - 1rem) !important;
-                            flex: 1 1 calc(50% - 1rem) !important;
-                            min-width: calc(50% - 1rem) !important;
-                        }
-                        /* Tighten the spacing between checkboxes */
-                        .stCheckbox {
-                            margin-bottom: -15px;
-                        }
-                        /* Font size adjustment for names */
-                        .stCheckbox label p {
-                            font-size: 14px !important;
-                            white-space: nowrap;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
+        if is_match_started:
+            # --- VIEW ONLY MODE ---
+            st.warning("🔒 Match has started! Team selection is now locked.")
 
-        # Mapping long roles to icons for space
-        role_icons = {
-            "Batsman": "🏏",
-            "Bowler": "⚾",
-            "WK-Batsman": "🧤",
-            "Batting Allrounder": "🏏⚾",
-            "Bowling Allrounder": "⚾🏏"
-        }
-        st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}")
+            # Load the user's saved team to show them what they picked
+            ld = db.load_league_data(match_id)
+            my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
 
-        # Display Rules
-        with st.expander("Show Selection Rules 📜"):
-            st.markdown("""
-            * **Total:** Exactly 11 players.
-            * **Team Limit:** Max 8 players from one team.
-            * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
-            """)
+            if my_data['c'] != "-":
+                st.subheader("Your Locked XI")
+                st.write(f"⭐ **Captain:** {my_data['c']}")
+                st.write(f"🎖️ **Vice-Captain:** {my_data['vc']}")
 
-        sq = utils.load_squads()
-        ld = db.load_league_data(match_id)
-        my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
-
-        t1_p = sq[sq['Team'] == match_info['Team 1']]
-        t2_p = sq[sq['Team'] == match_info['Team 2']]
-
-        selected_players = []
-        colL, colR = st.columns(2)
-
-        # Display Columns with Icons
-        for col, team_df, team_name in [(colL, t1_p, match_info['Team 1']), (colR, t2_p, match_info['Team 2'])]:
-            with col:
-                st.subheader(team_name[:3].upper())  # Shorten name (e.g., RCB)
-                for _, row in team_df.iterrows():
-                    p_n = row['Player Name']
-                    role = row['Role']
-                    icon = role_icons.get(role, "")
-                    os_icon = "✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
-
-                    # Create a very compact label: Icon + ShortName + OS
-                    label = f"{icon}{p_n}{os_icon}"
-
-                    if st.checkbox(label, value=(p_n in my_data['p']), key=f"sel_{team_name}_{p_n}"):
-                        selected_players.append(p_n)
-
-        # --- VALIDATION LOGIC ---
-        st.divider()
-        sel_df = sq[sq['Player Name'].isin(selected_players)]
-
-        overseas_count = len(sel_df[sel_df['Category'] == 'Overseas'])
-        team1_count = len(sel_df[sel_df['Team'] == match_info['Team 1']])
-        team2_count = len(sel_df[sel_df['Team'] == match_info['Team 2']])
-
-        # Role Counts
-        n_bat = len(sel_df[sel_df['Role'] == 'Batsman'])
-        n_bowl = len(sel_df[sel_df['Role'] == 'Bowler'])
-        n_wk = len(sel_df[sel_df['Role'] == 'WK-Batsman'])
-        n_ar = len(sel_df[sel_df['Role'].isin(['Batting Allrounder', 'Bowling Allrounder'])])
-
-        # Validation Checks
-        valid_count = (len(selected_players) == 11)
-        valid_overseas = (overseas_count <= 11)
-        valid_teams = (team1_count <= 8 and team2_count <= 8)
-        valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
-
-        # UI Indicators
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Selected", f"{len(selected_players)}/11")
-        c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
-                  delta_color="inverse")
-        c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
-        c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
-
-        if valid_count and valid_overseas and valid_teams and valid_roles:
-            c1, c2 = st.columns(2)
-            with c1:
-                cap = st.selectbox("Select Captain (2x)", selected_players,
-                                   index=selected_players.index(my_data['c']) if my_data[
-                                                                                     'c'] in selected_players else 0)
-            with c2:
-                # Filter out the selected Captain from VC options
-                vc_options = [p for p in selected_players if p != cap]
-                vc = st.selectbox("Select Vice-Captain (1.5x)", vc_options,
-                                  index=vc_options.index(my_data['vc']) if my_data['vc'] in vc_options else 0)
-
-            if st.button("💾 Save My Team"):
-                db.save_user_team(st.session_state.username, match_id, selected_players, cap, vc)
-                st.success("Selection Locked!")
+                # Show the rest of the players in a simple list or read-only columns
+                p_list = sorted(list(my_data['p'] - {my_data['c'], my_data['vc']}))
+                st.write("🏃 **Players:** " + ", ".join(p_list))
+            else:
+                st.info("You did not submit a team for this match.")
         else:
-            errors = []
-            if not valid_count: errors.append("Select exactly 11 players.")
-            if not valid_overseas: errors.append("Max 4 Overseas players allowed.")
-            if not valid_teams: errors.append("Max 8 players from a single team.")
-            if not valid_roles: errors.append("Must have at least 1 Batsman, 1 Bowler, 1 WK, and 1 Allrounder.")
+            # --- MOBILE COMPACT CSS ---
+            st.markdown("""
+                        <style>
+                            /* Force columns to stay side-by-side on mobile */
+                            [data-testid="column"] {
+                                width: calc(50% - 1rem) !important;
+                                flex: 1 1 calc(50% - 1rem) !important;
+                                min-width: calc(50% - 1rem) !important;
+                            }
+                            /* Tighten the spacing between checkboxes */
+                            .stCheckbox {
+                                margin-bottom: -15px;
+                            }
+                            /* Font size adjustment for names */
+                            .stCheckbox label p {
+                                font-size: 14px !important;
+                                white-space: nowrap;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
 
-            for err in errors:
-                st.warning(err)
+            # Mapping long roles to icons for space
+            role_icons = {
+                "Batsman": "🏏",
+                "Bowler": "⚾",
+                "WK-Batsman": "🧤",
+                "Batting Allrounder": "🏏⚾",
+                "Bowling Allrounder": "⚾🏏"
+            }
+            st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}")
+
+            # Display Rules
+            with st.expander("Show Selection Rules 📜"):
+                st.markdown("""
+                * **Total:** Exactly 11 players.
+                * **Team Limit:** Max 8 players from one team.
+                * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
+                """)
+
+            sq = utils.load_squads()
+            ld = db.load_league_data(match_id)
+            my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
+
+            t1_p = sq[sq['Team'] == match_info['Team 1']]
+            t2_p = sq[sq['Team'] == match_info['Team 2']]
+
+            selected_players = []
+            colL, colR = st.columns(2)
+
+            # Display Columns with Icons
+            for col, team_df, team_name in [(colL, t1_p, match_info['Team 1']), (colR, t2_p, match_info['Team 2'])]:
+                with col:
+                    st.subheader(team_name[:3].upper())  # Shorten name (e.g., RCB)
+                    for _, row in team_df.iterrows():
+                        p_n = row['Player Name']
+                        role = row['Role']
+                        icon = role_icons.get(role, "")
+                        os_icon = "✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
+
+                        # Create a very compact label: Icon + ShortName + OS
+                        label = f"{icon}{p_n}{os_icon}"
+
+                        if st.checkbox(label, value=(p_n in my_data['p']), key=f"sel_{team_name}_{p_n}"):
+                            selected_players.append(p_n)
+
+            # --- VALIDATION LOGIC ---
+            st.divider()
+            sel_df = sq[sq['Player Name'].isin(selected_players)]
+
+            overseas_count = len(sel_df[sel_df['Category'] == 'Overseas'])
+            team1_count = len(sel_df[sel_df['Team'] == match_info['Team 1']])
+            team2_count = len(sel_df[sel_df['Team'] == match_info['Team 2']])
+
+            # Role Counts
+            n_bat = len(sel_df[sel_df['Role'] == 'Batsman'])
+            n_bowl = len(sel_df[sel_df['Role'] == 'Bowler'])
+            n_wk = len(sel_df[sel_df['Role'] == 'WK-Batsman'])
+            n_ar = len(sel_df[sel_df['Role'].isin(['Batting Allrounder', 'Bowling Allrounder'])])
+
+            # Validation Checks
+            valid_count = (len(selected_players) == 11)
+            valid_overseas = (overseas_count <= 11)
+            valid_teams = (team1_count <= 8 and team2_count <= 8)
+            valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
+
+            # UI Indicators
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Selected", f"{len(selected_players)}/11")
+            c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
+                      delta_color="inverse")
+            c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
+            c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
+
+            if valid_count and valid_overseas and valid_teams and valid_roles:
+                c1, c2 = st.columns(2)
+                with c1:
+                    cap = st.selectbox("Select Captain (2x)", selected_players,
+                                       index=selected_players.index(my_data['c']) if my_data[
+                                                                                         'c'] in selected_players else 0)
+                with c2:
+                    # Filter out the selected Captain from VC options
+                    vc_options = [p for p in selected_players if p != cap]
+                    vc = st.selectbox("Select Vice-Captain (1.5x)", vc_options,
+                                      index=vc_options.index(my_data['vc']) if my_data['vc'] in vc_options else 0)
+
+                if st.button("💾 Save My Team"):
+                    db.save_user_team(st.session_state.username, match_id, selected_players, cap, vc)
+                    st.success("Selection Locked!")
+            else:
+                errors = []
+                if not valid_count: errors.append("Select exactly 11 players.")
+                if not valid_overseas: errors.append("Max 4 Overseas players allowed.")
+                if not valid_teams: errors.append("Max 8 players from a single team.")
+                if not valid_roles: errors.append("Must have at least 1 Batsman, 1 Bowler, 1 WK, and 1 Allrounder.")
+
+                for err in errors:
+                    st.warning(err)
     else:
         st.subheader("🏏 Ready to build your XI?")
         st.info("Please **Log In** or **Join** via the sidebar to select your team for this match.")
