@@ -135,3 +135,54 @@ def get_potm(scorecard_url):
     except:
         pass  # "Be chill" - if the page isn't ready or layout is different, return None
     return None
+
+
+def get_lineups(scorecard_url):
+    """
+    Scrapes the squads page to determine who is playing, sub, or benched.
+    Green = Playing XI, Purple = Subs, Red = Bench.
+    """
+    try:
+        # Convert scorecard URL to squads URL
+        squad_url = scorecard_url.replace("/live-cricket-scorecard/", "/cricket-match-squads/")
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        r = requests.get(squad_url, headers=headers, timeout=5)
+        soup = BeautifulSoup(r.text, 'html.parser')
+
+        status_map = {}
+        # Find the main sections (Playing XI, Substitutes, Bench)
+        # Cricbuzz usually groups these inside divs with <h1> headers
+        sections = soup.find_all("div", class_="pb-5")
+
+        for section in sections:
+            header = section.find("h1")
+            if not header: continue
+
+            label = header.get_text().lower()
+            # Determine color/status based on header text
+            if "playing xi" in label:
+                status = "🟢"  # Green
+            elif "substitutes" in label:
+                status = "🟣"  # Purple
+            elif "bench" in label:
+                status = "🔴"  # Red
+            else:
+                continue
+
+            # Extract player names from this section
+            # Names are usually inside <span> tags within <a> links
+            player_links = section.find_all("a", href=re.compile(r'/profiles/'))
+            for link in player_links:
+                name_span = None
+                all_spans = link.find_all("span")
+                for s in all_spans:
+                    if s.get_text(strip=True):  # Checks if the span isn't empty
+                        name_span = s
+                        break
+                if name_span:
+                    p_name = clean_name(name_span.get_text())
+                    status_map[p_name] = status
+
+        return status_map
+    except:
+        return {}

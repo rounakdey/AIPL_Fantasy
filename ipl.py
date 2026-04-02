@@ -13,6 +13,9 @@ import scraper
 # Initialize Cookie Manager at the very top of the script
 cookie_manager = stx.CookieManager()
 
+# Initialize a master key flag for locking the team after match has started
+lock_master_flag = True # Set True before deploying
+
 # Initialize a flag to track manual logouts
 if 'manual_logout' not in st.session_state:
     st.session_state.manual_logout = False
@@ -176,7 +179,17 @@ if is_match_started:
 
 with t2:
     if st.session_state.logged_in:
-        if is_match_started:
+        time_to_start = (match_info['match_dt'] - now_gmt).total_seconds() / 60
+
+        if "lineups" not in st.session_state or st.session_state.get("lineup_match") != match_id:
+            if time_to_start <= 30:  # Start checking slightly early
+                st.session_state.lineups = scraper.get_lineups(match_info['URL'])
+                st.session_state.lineup_match = match_id
+            else:
+                st.session_state.lineups = {}
+        lineups = st.session_state.get("lineups", {})
+
+        if is_match_started and lock_master_flag:
             # --- VIEW ONLY MODE ---
             st.warning("🔒 Match has started! Team selection is now locked.")
 
@@ -255,9 +268,10 @@ with t2:
                         role = row['Role']
                         icon = role_icons.get(role, "")
                         os_icon = "✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
-
+                        # --- Lineup Dot ---
+                        status_dot = lineups.get(p_n, "")  # Will be 🟢, 🟣, 🔴 or empty
                         # Create a very compact label: Icon + ShortName + OS
-                        label = f"{icon}{p_n}{os_icon}"
+                        label = f"{icon}{p_n}{os_icon}{status_dot}"
 
                         if st.checkbox(label, value=(p_n in my_data['p']), key=f"sel_{team_name}_{p_n}"):
                             selected_players.append(p_n)
