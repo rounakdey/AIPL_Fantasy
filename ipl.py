@@ -2,11 +2,34 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from streamlit_autorefresh import st_autorefresh
+import extra_streamlit_components as stx
 
 # Import our custom modules
 import utils
 import database as db
 import scraper
+
+# Initialize Cookie Manager at the very top of the script
+cookie_manager = stx.CookieManager()
+
+# Define a function to handle cookie-based login
+def check_cookies():
+    if not st.session_state.get('logged_in'):
+        saved_user = cookie_manager.get('ipl_username')
+        saved_token = cookie_manager.get('ipl_token')  # This would be the hashed password
+
+        if saved_user and saved_token:
+            # Verify against database
+            res = db.check_login(saved_user, saved_token)
+            if res:
+                st.session_state.logged_in = True
+                st.session_state.username = saved_user
+                return True
+    return False
+
+
+# Trigger the check
+check_cookies()
 
 # --- APP UI CONFIG ---
 st.set_page_config(page_title="IPL 2026 Season", layout="wide")
@@ -57,33 +80,66 @@ with st.sidebar:
     if not st.session_state.logged_in:
         u = st.text_input("Username")
         p = st.text_input("Password", type='password')
+        remember_me = st.checkbox("Remember Me")  # New Checkbox
+
         if u and p:
             hpw = utils.hash_password(p)
             c1, c2 = st.columns(2)
+
+            # --- LOGIN BUTTON ---
             if c1.button("Login"):
                 user_data = db.check_login(u, hpw)
                 if user_data:
                     st.session_state.logged_in = True
                     st.session_state.username = u
+
+                    if remember_me:
+                        # Add unique 'key' arguments to avoid the DuplicateElementKey error
+                        cookie_manager.set('ipl_username', u,
+                                           expires_at=datetime.now() + timedelta(days=60),
+                                           key="set_user_cookie")
+
+                        # The second set needs a different key
+                        cookie_manager.set('ipl_token', hpw,
+                                           expires_at=datetime.now() + timedelta(days=60),
+                                           key="set_token_cookie")
+
                     st.rerun()
                 else:
                     st.error("Invalid credentials")
+
+            # --- JOIN LEAGUE BUTTON (Keeping your 10-player logic) ---
             if c2.button("Join League"):
-                # Check global count instead of match-specific count
                 if db.get_total_user_count() < 10:
                     try:
                         db.join_league_all_matches(u, hpw)
-                        st.success(f"Welcome {u}! Account Created Successfully.")
+                        st.success(f"Welcome {u}!")
                         st.session_state.logged_in = True
                         st.session_state.username = u
+
+                        # Also remember them if they join with checkbox checked
+                        if remember_me:
+                            cookie_manager.set('ipl_username', u,
+                                               expires_at=datetime.now() + timedelta(days=60),
+                                               key="join_user_cookie")
+                            cookie_manager.set('ipl_token', hpw,
+                                               expires_at=datetime.now() + timedelta(days=60),
+                                               key="join_token_cookie")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Join failed: {e}")
                 else:
                     st.error("League is full! (Max 10 players)")
     else:
+        # --- LOGGED IN VIEW ---
         st.success(f"User: {st.session_state.username}")
-        if st.button("Logout"): st.session_state.logged_in = False; st.rerun()
+        if st.button("Logout"):
+            # Clear session and cookies on logout
+            st.session_state.logged_in = False
+            st.session_state.username = None
+            cookie_manager.delete('ipl_username')
+            cookie_manager.delete('ipl_token')
+            st.rerun()
 
 # Auto-Refresh Logic
 if st.session_state.refresh_enabled:
