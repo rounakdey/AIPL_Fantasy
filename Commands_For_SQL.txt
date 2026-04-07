@@ -33,3 +33,24 @@ CREATE TABLE selections (
 -- Optimization: Indexing match_id makes loading the league dashboard significantly faster
 CREATE INDEX idx_match_teams_id ON match_teams(match_id);
 CREATE INDEX idx_selections_match ON selections(match_id);
+
+
+-- Delete an user
+-- 1. Remove the user's specific match selections (the 11-player teams)
+DELETE FROM selections
+WHERE username = 'sayarkarmakar';
+
+-- 2. Remove the user's match-specific settings (Captain/VC proxy entries)
+DELETE FROM match_teams
+WHERE username = 'sayarkarmakar';
+
+-- 3. Remove the user's global account (Login credentials)
+DELETE FROM users
+WHERE username = 'sayarkarmakar';
+
+
+-- Resetting the counter for id in team selection. This needs to be reset after manual editing.
+SELECT setval(
+  pg_get_serial_sequence('selections', 'id'),
+  (SELECT MAX(id) FROM selections)
+);

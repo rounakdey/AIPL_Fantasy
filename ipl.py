@@ -26,6 +26,10 @@ def check_cookies():
         saved_user = cookie_manager.get('ipl_username')
         saved_token = cookie_manager.get('ipl_token')  # This would be the hashed password
 
+        # This is to log in as any manager to debug/edit post-hoc (backdoor key)
+        #saved_user = "your_user"
+        #saved_token =  "hashed_pw"
+
         if saved_user and saved_token:
             # Verify against database
             res = db.check_login(saved_user, saved_token)
@@ -169,13 +173,23 @@ if st.session_state.refresh_enabled:
     st_autorefresh(interval=60000, key="global_refresh")
     st.session_state.live_df = scraper.get_live_stats(current_url)
 
+# --- DYNAMIC TABS ---
+is_admin = st.session_state.get('username') == "Valar Morghulis" # Set your admin username here
+# Define the base tabs
 tab_list = ["🏆 Leaderboard", "🏏 My Selection"]
 if is_match_started:
     tab_list.append("⚔️ Matchups")
+    # Add Admin tab if logged in as admin
+    if is_admin:
+        tab_list.append("🛠️ Admin Edit")
+
 tabs = st.tabs(tab_list)
 t1, t2 = tabs[0], tabs[1]
 if is_match_started:
     t3 = tabs[2]
+    if is_admin:
+        # If match is started, t3 is Matchups, so Admin is t4.
+        t_admin = tabs[3]
 
 with t2:
     if st.session_state.logged_in:
@@ -246,6 +260,7 @@ with t2:
                 st.markdown("""
                 * **Total:** Exactly 11 players.
                 * **Team Limit:** Max 8 players from one team.
+                * **Overseas Limit:** Max 4 overseas players.
                 * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
                 """)
 
@@ -292,14 +307,14 @@ with t2:
 
             # Validation Checks
             valid_count = (len(selected_players) == 11)
-            valid_overseas = (overseas_count <= 11)
+            valid_overseas = (overseas_count <= 4)
             valid_teams = (team1_count <= 8 and team2_count <= 8)
             valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
 
             # UI Indicators
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Selected", f"{len(selected_players)}/11")
-            c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
+            c2.metric("Overseas ✈️", f"{overseas_count}/4", delta=None if valid_overseas else "Too many",
                       delta_color="inverse")
             c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
             c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
@@ -322,7 +337,7 @@ with t2:
             else:
                 errors = []
                 if not valid_count: errors.append("Select exactly 11 players.")
-                if not valid_overseas: errors.append("Max 4 Overseas players allowed.")
+                if not valid_overseas: errors.append("Max 4 overseas✈️ players allowed.")
                 if not valid_teams: errors.append("Max 8 players from a single team.")
                 if not valid_roles: errors.append("Must have at least 1 Batsman, 1 Bowler, 1 WK, and 1 Allrounder.")
 
@@ -337,6 +352,7 @@ with t2:
                 **Selection Rules Preview:**
                 * Pick exactly 11 players.
                 * Max 8 players from one team.
+                * Max 4 overseas✈️ players.
                 * Must include: 1 WK, 1 Allrounder, 1 Batsman, 1 Bowler.
                 """)
 
@@ -496,6 +512,73 @@ if is_match_started:
                         st.markdown(f"<div class='{cls}'>{symbol} {p}: {pts}</div>", unsafe_allow_html=True)
         else:
             st.info("Need at least 2 users to compare matchups.")
+
+    # Only allow admin edits if the match has started
+    if is_admin:
+        with t_admin:
+            st.header("Admin Override: Manual Team Edit")
+            st.info(
+                "As Admin, you can edit any manager's team. Rules (Overseas/Role) are bypassed, but you must pick exactly 11 players.")
+
+            # 1. Select which manager to edit
+            all_managers = list(db.load_league_data(match_id).keys())
+            target_user = st.selectbox("Select Manager to Edit", all_managers)
+
+            # 2. Load the current team for the selected manager
+            ld = db.load_league_data(match_id)
+            target_data = ld.get(target_user, {"p": set(), "c": "-", "vc": "-"})
+
+            # --- Compact Selection Grid (Reuse your T2 style) ---
+            sq = utils.load_squads()
+            t1_p = sq[sq['Team'] == match_info['Team 1']]
+            t2_p = sq[sq['Team'] == match_info['Team 2']]
+
+            admin_selected = []
+            colL, colR = st.columns(2)
+
+            for col, team_df, team_name in [(colL, t1_p, match_info['Team 1']), (colR, t2_p, match_info['Team 2'])]:
+                with col:
+                    st.subheader(team_name[:3].upper())
+                    for _, row in team_df.iterrows():
+                        p_n = row['Player Name']
+                        # Admin doesn't need icons, just names and status if available
+                        lineups = st.session_state.get("lineups", {})
+                        dot = lineups.get(p_n, "")
+                        label = f"{p_n} {'✈️' if row['Category'] == 'Overseas' else ''}{dot}"
+
+                        if st.checkbox(label, value=(p_n in target_data['p']), key=f"admin_{target_user}_{p_n}"):
+                            admin_selected.append(p_n)
+
+            st.divider()
+
+            # 3. Captain/VC for the edited user
+            c_col, vc_col = st.columns(2)
+            with c_col:
+                new_c = st.selectbox("Set Captain", ["-"] + admin_selected,
+                                     index=admin_selected.index(target_data['c']) + 1 if target_data[
+                                                                                             'c'] in admin_selected else 0,
+                                     key="admin_c")
+            with vc_col:
+                new_vc = st.selectbox("Set Vice-Captain", ["-"] + admin_selected,
+                                      index=admin_selected.index(target_data['vc']) + 1 if target_data[
+                                                                                               'vc'] in admin_selected else 0,
+                                      key="admin_vc")
+
+            # 4. Save Logic (Bypass everything except the 11-player count)
+            if st.button("🛠️ FORCE UPDATE TEAM", use_container_width=True):
+                if len(admin_selected) != 11:
+                    st.error(f"Error: Exactly 11 players required (Currently {len(admin_selected)})")
+                elif new_c == "-" or new_vc == "-":
+                    st.error("Error: Must select Captain and Vice-Captain")
+                else:
+                    try:
+                        db.save_user_team(target_user, match_id, admin_selected, new_c, new_vc)
+                        st.success(f"SUCCESS: {target_user}'s team updated by Admin!")
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Database Error: {e}")
+
 else:
     # Inform users why the tab is missing if they are looking for it
     st.sidebar.info("⚔️ Matchups will unlock once the match starts.")
