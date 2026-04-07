@@ -18,6 +18,14 @@ def check_login(username, hashed_pw):
     res = supabase.table("users").select("*").eq("username", username).eq("password", hashed_pw).execute()
     return res.data
 
+def get_user_password(username):
+    """Retrieves the hashed password for a specific user."""
+    res = supabase.table("users").select("password").eq("username", username).execute()
+    return res.data[0]['password'] if res.data else None
+
+def update_password(username, new_hashed_pw):
+    """Updates an existing user's password."""
+    supabase.table("users").update({"password": new_hashed_pw}).eq("username", username).execute()
 
 def join_league_all_matches(username, hashed_pw):
     """

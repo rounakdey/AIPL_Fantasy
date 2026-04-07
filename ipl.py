@@ -124,26 +124,55 @@ with st.sidebar:
 
             # --- JOIN LEAGUE BUTTON (Keeping your 10-player logic) ---
             if c2.button("Join League"):
-                if db.get_total_user_count() < 10:
-                    try:
-                        db.join_league_all_matches(u, hpw)
-                        st.success(f"Welcome {u}!")
-                        st.session_state.logged_in = True
-                        st.session_state.username = u
+                # 1. Check if user already exists
+                existing_pw = db.get_user_password(u)
 
-                        # Also remember them if they join with checkbox checked
-                        if remember_me:
-                            cookie_manager.set('ipl_username', u,
-                                               expires_at=datetime.now() + timedelta(days=60),
-                                               key="join_user_cookie")
-                            cookie_manager.set('ipl_token', hpw,
-                                               expires_at=datetime.now() + timedelta(days=60),
-                                               key="join_token_cookie")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Join failed: {e}")
+                if existing_pw is not None:
+                    # SCENARIO: User exists. Check for Reset token "0"
+                    if existing_pw == "0":
+                        try:
+                            # Reset: Update the "0" with the new hashed password
+                            db.update_password(u, hpw)
+                            st.success("Password Reset Successful!")
+                            st.session_state.logged_in = True
+                            st.session_state.username = u
+
+                            if remember_me:
+                                cookie_manager.set('ipl_username', u, expires_at=datetime.now() + timedelta(days=60),
+                                                   key="reset_user_cookie")
+                                cookie_manager.set('ipl_token', hpw, expires_at=datetime.now() + timedelta(days=60),
+                                                   key="reset_token_cookie")
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Reset failed: {e}")
+                    else:
+                        # SCENARIO: User exists but is not in reset mode
+                        st.error("Username already taken. Please use 'Login' or contact Admin to reset.")
+
                 else:
-                    st.error("League is full! (Max 10 players)")
+                    # SCENARIO: Brand New User
+                    if db.get_total_user_count() < 10:
+                        try:
+                            db.join_league_all_matches(u, hpw)
+                            st.success(f"Welcome {u}!")
+                            st.session_state.logged_in = True
+                            st.session_state.username = u
+
+                            # Also remember them if they join with checkbox checked
+                            if remember_me:
+                                cookie_manager.set('ipl_username', u,
+                                                   expires_at=datetime.now() + timedelta(days=60),
+                                                   key="join_user_cookie")
+                                cookie_manager.set('ipl_token', hpw,
+                                                   expires_at=datetime.now() + timedelta(days=60),
+                                                   key="join_token_cookie")
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Join failed: {e}")
+                    else:
+                        st.error("League is full! (Max 10 players)")
     else:
         # --- LOGGED IN VIEW ---
         st.success(f"User: {st.session_state.username}")
