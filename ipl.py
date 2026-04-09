@@ -26,10 +26,6 @@ def check_cookies():
         saved_user = cookie_manager.get('ipl_username')
         saved_token = cookie_manager.get('ipl_token')  # This would be the hashed password
 
-        # This is to log in as any manager to debug/edit post-hoc (backdoor key)
-        #saved_user = "your_user"
-        #saved_token =  "hashed_pw"
-
         if saved_user and saved_token:
             # Verify against database
             res = db.check_login(saved_user, saved_token)
@@ -297,8 +293,14 @@ with t2:
             ld = db.load_league_data(match_id)
             my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
 
-            t1_p = sq[sq['Team'] == match_info['Team 1']]
-            t2_p = sq[sq['Team'] == match_info['Team 2']]
+            lineups = st.session_state.get("lineups", {})
+
+            t1_p_raw = sq[sq['Team'] == match_info['Team 1']]
+            t2_p_raw = sq[sq['Team'] == match_info['Team 2']]
+
+            # Apply the new sort logic
+            t1_p = utils.sort_squad(t1_p_raw.copy(), lineups)
+            t2_p = utils.sort_squad(t2_p_raw.copy(), lineups)
 
             selected_players = []
             colL, colR = st.columns(2)
@@ -559,8 +561,14 @@ if is_match_started:
 
             # --- Compact Selection Grid (Reuse your T2 style) ---
             sq = utils.load_squads()
-            t1_p = sq[sq['Team'] == match_info['Team 1']]
-            t2_p = sq[sq['Team'] == match_info['Team 2']]
+            lineups = st.session_state.get("lineups", {})
+
+            t1_p_admin = sq[sq['Team'] == match_info['Team 1']]
+            t2_p_admin = sq[sq['Team'] == match_info['Team 2']]
+
+            # Apply the sort here too
+            t1_p = utils.sort_squad(t1_p_admin.copy(), lineups)
+            t2_p = utils.sort_squad(t2_p_admin.copy(), lineups)
 
             admin_selected = []
             colL, colR = st.columns(2)
@@ -607,6 +615,20 @@ if is_match_started:
                         st.rerun()
                     except Exception as e:
                         st.error(f"Database Error: {e}")
+
+            st.divider()
+            st.subheader(f"Account Actions for {target_user}")
+
+            # New Reset Password Button
+            if st.button(f"🔄 RESET PASSWORD FOR {target_user.upper()}", use_container_width=True):
+                try:
+                    # Set the password to "0" as per our reset logic
+                    db.update_password(target_user, "0")
+                    st.success(f"Success! {target_user}'s password has been set to '0'.")
+                    st.info(
+                        "The user can now reset their password by using the 'Join League' button with their username.")
+                except Exception as e:
+                    st.error(f"Failed to reset password: {e}")
 
 else:
     # Inform users why the tab is missing if they are looking for it
