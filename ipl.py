@@ -386,6 +386,7 @@ with t2:
                 """)
 
 with t1:
+    round3_matches = [f"match_{i}" for i in range(20, 29)]
     st.header(f"Standings: {match_info['Team 1']} vs {match_info['Team 2']}")
     cA, cB, cC = st.columns([1, 1, 1])
     if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url)
@@ -398,7 +399,12 @@ with t1:
     if ld:
         standings = []
         # Create a points map if live data exists, else empty dict
-        p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
+        if not live_df.empty:
+            p_map = live_df.set_index('Player')['Total Points'].to_dict()
+            opener_set = set(live_df[live_df['Opener'] == True]['Player'])
+        else:
+            p_map = {}
+            opener_set = set()
 
         for u, info in ld.items():
             # --- NEW FILTER LOGIC ---
@@ -408,6 +414,7 @@ with t1:
 
             # Calculate score only if p_map is not empty, otherwise default to 0
             total_score = 0
+            opener_count = 0
             if p_map:
                 for n in info['p']:
                     p_pts = p_map.get(n, 0)
@@ -417,13 +424,20 @@ with t1:
                         total_score += p_pts * 1.5
                     else:
                         total_score += p_pts
+                    # Check for opener penalty
+                    if n in opener_set:
+                        opener_count += 1
+
+                # Apply Penalty: -50 per opener
+                if match_id in round3_matches: total_score -= (opener_count * 50)
 
             # Privacy: Hide C/VC if match hasn't started
             standings.append({
                 "Manager": u,
                 "Score": int(total_score),
+                "Openers": opener_count if is_match_started else "🔒 Hidden",
                 "Captain": info['c'] if is_match_started else "🔒 Hidden",
-                "Vice-Captain": info['vc'] if is_match_started else "🔒 Hidden"
+                "Vice-Captain": info['vc'] if is_match_started else "🔒 Hidden",
             })
 
         # Only show the table if we have at least one active manager
@@ -443,17 +457,17 @@ with t1:
     st.divider()
     with st.expander("View Scoring System 📈"):
         st.table(pd.DataFrame([
-            {"Category": "Batting", "Action": "Run / 4 / 6", "Points": "+1 / +2 / +3"},
+            {"Category": "Batting", "Action": "Run / 4 / 6 / Duck", "Points": "+1 / +2 / +3 / -10"},
             {"Category": "Batting", "Action": "Milestone Bonus", "Points": "+10 every 25 runs"},
             {"Category": "Batting", "Action": "Strike-rate Bonus", "Points": "Runs - Balls"},
-            {"Category": "Batting", "Action": "Duck", "Points": "-10"},
             {"Category": "Bowling", "Action": "Wicket / Maiden", "Points": "+25 / +15"},
             {"Category": "Bowling", "Action": "Economy Bonus", "Points": "(Balls x 2) - Runs"},
             {"Category": "Bowling", "Action": "Hauls (3/5/7)", "Points": "+25 / +50 / +100"},
             {"Category": "Fielding", "Action": "Catch / Stump / Run-out", "Points": "+15 / +10 / +10"},
             {"Category": "Bonus", "Action": "Player of the Match", "Points": "+25"},
             {"Category": "Multipliers", "Action": "Captain", "Points": "2x Total Points"},
-            {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"}
+            {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"},
+            {"Category": "Round 3 Specific", "Action": "Per Opener", "Points": "-50"},
         ]))
 
 if is_match_started:
@@ -510,9 +524,13 @@ if is_match_started:
                         score += pts * 1.5
                     else:
                         score += pts
+                    if (p in opener_set) and (match_id in round3_matches):
+                        score -= 50
+
                 return int(score)
 
 
+            opener_set = set(live_df[live_df['Opener'] == True]['Player']) if not live_df.empty else set()
             score1, score2 = calc_score(m1), calc_score(m2)
             diff = abs(score1 - score2)
 
@@ -529,12 +547,18 @@ if is_match_started:
             for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
                 with col:
                     st.markdown(f"<div class='mgr-head'>{manager}</div>", unsafe_allow_html=True)
-                    st.write(f"⭐ **C:** {c} ({int(p_map.get(c, 0) * 2)})")
-                    st.write(f"🎖️ **VC:** {vc} ({int(p_map.get(vc, 0) * 1.5)})")
+                    c_pts = int(p_map.get(c, 0) * 2)
+                    vc_pts = int(p_map.get(vc, 0) * 1.5)
+                    if match_id in round3_matches:
+                        if c in opener_set: c_pts -= 50
+                        if vc in opener_set: vc_pts -= 50
+                    st.write(f"⭐ **C:** {c} ({c_pts})")
+                    st.write(f"🎖️ **VC:** {vc} ({vc_pts})")
 
                     # Display remaining players
                     for p in sorted(list(pks - {c, vc})):
                         pts = int(p_map.get(p, 0))
+                        if (p in opener_set) and (match_id in round3_matches): pts -= 50
                         cls = "common-p" if p in other_pks else "unique-p"
                         symbol = "●" if p in other_pks else "○"
                         # Use div with display:block (via CSS) to ensure vertical stacking

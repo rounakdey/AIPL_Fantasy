@@ -33,6 +33,25 @@ def get_live_stats(url):
         headers = {'User-Agent': 'Mozilla/5.0'}
         r = requests.get(url, headers=headers)
         soup = BeautifulSoup(r.text, 'html.parser')
+
+        # New: List to store openers
+        openers = []
+
+        # Batting Tables
+        bat_tables = soup.find_all('div', id=re.compile('innings-\\d'))
+        for table in bat_tables:
+            # Find all batting rows in this innings
+            rows = table.find_all('div', class_='scorecard-bat-grid')
+            # The first two rows with actual player names are the openers
+            count = 0
+            for row in rows:
+                name_link = row.find('a', class_='text-cbTextLink')
+                if name_link and count < 2:
+                    name = clean_name(name_link.text)
+                    if name not in openers:
+                        openers.append(name)
+                    count += 1
+
         unique_batting, unique_bowling, fielding_pts, processed = {}, {}, {}, set()
 
         for row in soup.find_all('div', class_='scorecard-bat-grid'):
@@ -104,8 +123,9 @@ def get_live_stats(url):
                 "Batting": bat,
                 "Bowling": bowl,
                 "Fielding": fld,
-                "POTM": potm_bonus,  # Added column for transparency
-                "Total Points": total
+                "POTM": potm_bonus,
+                "Total Points": total,
+                "Opener": p in openers
             })
         return pd.DataFrame(merged)
     except: return pd.DataFrame()
