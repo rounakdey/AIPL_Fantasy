@@ -448,9 +448,29 @@ with t1:
     else:
         st.info("No registered managers found in the league.")
 
-        # Show the player points table only if it actually has data
+    st.divider()
+    st.subheader("Live Player Performance")
+    # Show the player points table only if it actually has data
     if not live_df.empty:
-        st.dataframe(live_df.sort_values(by="Total Points", ascending=False), width='stretch', hide_index=True)
+        display_df = live_df.copy()
+        # Add columns for each manager
+        for mgr_name, mgr_data in ld.items():
+            # Skip managers who haven't picked a team (C is still "-")
+            if mgr_data['c'] == "-":
+                continue
+
+            def get_mgr_status(player_name):
+                if player_name == mgr_data['c']:
+                    return "⭐"
+                elif player_name == mgr_data['vc']:
+                    return "🎖️"
+                elif player_name in mgr_data['p']:
+                    return "✅"
+                return ""
+
+            display_df[mgr_name[:10]] = display_df['Player'].apply(get_mgr_status)
+        st.dataframe(display_df.sort_values(by="Total Points", ascending=False), width='stretch', hide_index=True)
+        st.info("⭐ = Captain, 🎖️ = Vice-captain")
     else:
         st.info("Waiting for live match data to appear on Cricbuzz...")
 
@@ -500,7 +520,8 @@ if is_match_started:
             """, unsafe_allow_html=True)
 
         ld = db.load_league_data(match_id)
-        mgrs = list(ld.keys())
+        # Only show managers who have created a team
+        mgrs = [m for m, data in ld.items() if data['c'] != "-"]
 
         if len(mgrs) >= 2:
             col_sel1, col_sel2 = st.columns(2)
