@@ -6,11 +6,6 @@ from datetime import datetime
 import streamlit as st
 from utils import clean_name
 
-SCORING = {
-    'run': 1, 'four': 2, 'six': 3, 'duck': -10,
-    'wicket': 25, 'maiden': 15,
-    'catch': 15, 'stumping': 10, 'runout': 10
-}
 
 def parse_fielding(dismissal_text):
     fielders = []
@@ -27,8 +22,27 @@ def parse_fielding(dismissal_text):
         fielders.append({'name': clean_name(text[2:].split(" b ")[0].strip()), 'type': 'catch'})
     return fielders
 
-def get_live_stats(url):
+def get_live_stats(url, match_id):
     try:
+        SCORING = {
+            'run': 1, 'four': 2, 'six': 3, 'duck': -10,
+            'wicket': 25, 'maiden': 15,
+            'threewicket': 25, 'fivewicket': 50, 'sevenwicket': 100,
+            'catch': 15, 'stumping': 10, 'runout': 10
+        }
+
+        round4_matches = [f"match_{i}" for i in range(29, 38)]
+        if match_id in round4_matches:
+            SCORING.update({
+                'wicket': 30, 'threewicket': 50, 'fivewicket': 100, 'sevenwicket': 200
+            })
+
+        # Load squads to check roles
+        from utils import load_squads
+        squad_df = load_squads()
+        # Create a mapping of Player Name -> Role
+        role_map = squad_df.set_index('Player Name')['Role'].str.strip().str.title().to_dict()
+
         st.session_state.last_refresh = datetime.now().strftime("%H:%M:%S")
         headers = {'User-Agent': 'Mozilla/5.0'}
         r = requests.get(url, headers=headers)
@@ -59,6 +73,7 @@ def get_live_stats(url):
             if not cols or "Batter" in cols[0].text: continue
             try:
                 name = clean_name(row.find('a', class_='text-cbTextLink').text.strip())
+                role = role_map.get(name, "Unknown")  # Get role for this specific player
                 d_div = cols[0].find('div', class_='text-cbTxtSec')
                 if d_div:
                     raw_d_text = d_div.text.strip()
@@ -81,7 +96,7 @@ def get_live_stats(url):
                     b_pts = (runs * SCORING['run']) + (fours * SCORING['four']) + (sixes * SCORING['six'])
                     b_pts += (runs // 25) * 10        # Milestone: +10 every 25 runs
                     b_pts += (runs - balls)           # Strike-rate: Runs - Balls
-                    if runs == 0 and not is_not_out:
+                    if runs == 0 and not is_not_out and role != "Bowler":
                         b_pts += SCORING['duck']
                     unique_batting[name] = {"BatPts": b_pts}
             except: continue
@@ -95,10 +110,10 @@ def get_live_stats(url):
                 total_balls = (int(ov_str[0]) * 6) + (int(ov_str[1]) if len(ov_str) > 1 else 0)
                 m, r_conc, w = int(cols[1].text), int(cols[2].text), int(cols[3].text)
                 w_pts = (w * SCORING['wicket']) + (m * SCORING['maiden'])
-                w_pts += (total_balls * 2) - r_conc  # Economy: (Balls x 2) - Runs
-                if w >= 7: w_pts += 100           # 7-Wicket Haul
-                elif w >= 5: w_pts += 50         # 5-Wicket Haul
-                elif w >= 3: w_pts += 25         # 3-Wicket Haul
+                w_pts += (total_balls * 3) - r_conc  # Economy: (Balls x 3) - Runs
+                if w >= 7: w_pts += SCORING.get('sevenwicket', 100)           # 7-Wicket Haul
+                elif w >= 5: w_pts += SCORING.get('fivewicket', 50)         # 5-Wicket Haul
+                elif w >= 3: w_pts += SCORING.get('threewicket', 25)         # 3-Wicket Haul
                 unique_bowling[name] = {"BowlPts": w_pts}
             except: continue
 
@@ -106,6 +121,7 @@ def get_live_stats(url):
         potm_name = get_potm(url)
         merged = []
         for p in all_p:
+            role = role_map.get(p, "Unknown")
             bat = unique_batting.get(p, {'BatPts': 0})['BatPts']
             bowl = unique_bowling.get(p, {'BowlPts': 0})['BowlPts']
             fld = fielding_pts.get(p, 0)

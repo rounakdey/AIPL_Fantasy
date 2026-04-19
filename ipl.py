@@ -196,7 +196,7 @@ with st.sidebar:
 # Auto-Refresh Logic
 if st.session_state.refresh_enabled:
     st_autorefresh(interval=60000, key="global_refresh")
-    st.session_state.live_df = scraper.get_live_stats(current_url)
+    st.session_state.live_df = scraper.get_live_stats(current_url, match_id)
 
 # --- DYNAMIC TABS ---
 is_admin = st.session_state.get('username') == "Valar Morghulis" # Set your admin username here
@@ -389,7 +389,7 @@ with t1:
     round3_matches = [f"match_{i}" for i in range(20, 29)]
     st.header(f"Standings: {match_info['Team 1']} vs {match_info['Team 2']}")
     cA, cB, cC = st.columns([1, 1, 1])
-    if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url)
+    if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url, match_id)
     st.session_state.refresh_enabled = cB.checkbox("Auto Refresh (60s)", value=st.session_state.refresh_enabled,
                                                    key="c1")
     cC.write(f"⏱️ Last Update: **{st.session_state.last_refresh}**")
@@ -432,13 +432,14 @@ with t1:
                 if match_id in round3_matches: total_score -= (opener_count * 50)
 
             # Privacy: Hide C/VC if match hasn't started
-            standings.append({
+            ldbrd_row = {
                 "Manager": u,
                 "Score": int(total_score),
-                "Openers": opener_count if is_match_started else "🔒 Hidden",
                 "Captain": info['c'] if is_match_started else "🔒 Hidden",
                 "Vice-Captain": info['vc'] if is_match_started else "🔒 Hidden",
-            })
+            }
+            if match_id in round3_matches: ldbrd_row["Openers"] = opener_count if is_match_started else "🔒 Hidden"
+            standings.append(ldbrd_row)
 
         # Only show the table if we have at least one active manager
         if standings:
@@ -477,17 +478,18 @@ with t1:
     st.divider()
     with st.expander("View Scoring System 📈"):
         st.table(pd.DataFrame([
-            {"Category": "Batting", "Action": "Run / 4 / 6 / Duck", "Points": "+1 / +2 / +3 / -10"},
+            {"Category": "Batting", "Action": "Run / 4 / 6 / Duck (only Non-Bowlers)", "Points": "+1 / +2 / +3 / -10"},
             {"Category": "Batting", "Action": "Milestone Bonus", "Points": "+10 every 25 runs"},
             {"Category": "Batting", "Action": "Strike-rate Bonus", "Points": "Runs - Balls"},
             {"Category": "Bowling", "Action": "Wicket / Maiden", "Points": "+25 / +15"},
-            {"Category": "Bowling", "Action": "Economy Bonus", "Points": "(Balls x 2) - Runs"},
+            {"Category": "Bowling", "Action": "Economy Bonus", "Points": "(Balls x 3) - Runs"},
             {"Category": "Bowling", "Action": "Hauls (3/5/7)", "Points": "+25 / +50 / +100"},
             {"Category": "Fielding", "Action": "Catch / Stump / Run-out", "Points": "+15 / +10 / +10"},
             {"Category": "Bonus", "Action": "Player of the Match", "Points": "+25"},
             {"Category": "Multipliers", "Action": "Captain", "Points": "2x Total Points"},
             {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"},
             {"Category": "Round 3 Specific", "Action": "Per Opener", "Points": "-50"},
+            {"Category": "Round 4 Specific", "Action": "Wicket / Hauls (3/5/7)", "Points": "+30 / +50 / +100 / +200"},
         ]))
 
 if is_match_started:
