@@ -527,8 +527,18 @@ if is_match_started:
 
         if len(mgrs) >= 2:
             col_sel1, col_sel2 = st.columns(2)
-            m1 = col_sel1.selectbox("Manager 1", mgrs, index=0)
-            m2 = col_sel2.selectbox("Manager 2", mgrs, index=1)
+            # Find the index of the logged-in user in the active list
+            current_user = st.session_state.get('username')
+            default_index_m1 = 0
+            if current_user in mgrs:
+                default_index_m1 = mgrs.index(current_user)
+
+            # Set Manager 1 to the current user, and Manager 2 to the next person in the list
+            m1 = col_sel1.selectbox("Manager 1", mgrs, index=default_index_m1)
+
+            # Logic for Manager 2 default (ensure it's not the same as Manager 1)
+            default_index_m2 = 1 if default_index_m1 == 0 else 0
+            m2 = col_sel2.selectbox("Manager 2", mgrs, index=default_index_m2)
 
             # Get Live Points Map
             live_df = st.session_state.get('live_df', pd.DataFrame())
