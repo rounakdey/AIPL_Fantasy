@@ -441,13 +441,79 @@ with t1:
             if match_id in round3_matches: ldbrd_row["Openers"] = opener_count if is_match_started else "🔒 Hidden"
             standings.append(ldbrd_row)
 
+        standings = sorted(standings, key=lambda x: (-x['Score'], x['Manager']))
         # Only show the table if we have at least one active manager
         if standings:
-            st.table(pd.DataFrame(standings).sort_values(by="Score", ascending=False))
+            st.table(pd.DataFrame(standings))
         else:
             st.info("No managers have locked in their teams for this match yet.")
     else:
         st.info("No registered managers found in the league.")
+
+    # --- Path to Top Analysis ---
+    if st.session_state.logged_in and not live_df.empty and standings:
+        st.subheader("🎯 Path to #1")
+        curr_user = st.session_state.username
+
+        # 1. Identify Target (Top person, or 2nd if user is #1)
+        if standings[0]['Manager'] == curr_user:
+            target = standings[1]
+            st.write(
+                f"🏆 **You are currently leading!** To stay ahead of **{target['Manager']}**, here is the breakdown:")
+        else:
+            target = standings[0]
+            gap = target['Score'] - next(s['Score'] for s in standings if s['Manager'] == curr_user)
+            st.write(f"📈 **Chasing {target['Manager']}** ({gap} pts gap). Here is your path to the top:")
+
+        target_data = ld[target['Manager']]
+        my_data = ld[curr_user]
+
+        col_root, col_oppose = st.columns(2)
+
+        # 2. Logic: Who to Root For
+        with col_root:
+            st.success("📣 PLAYERS TO ROOT FOR")
+
+            # Unique Players
+            uniques = my_data['p'] - target_data['p']
+            for p in uniques:
+                if p == my_data['c']:
+                    st.write(f"⭐ **{p}**: Your Captain, they don't have him.")
+                elif p == my_data['vc']:
+                    st.write(f"🎖️ **{p}**: Your Vice-Captain, they don't have him.")
+                else:
+                    st.write(f"✅ **{p}**: You have him, they don't.")
+
+            # Captaincy Advantages
+            # If I have C and they have VC/Regular OR I have VC and they have Regular
+            if my_data['c'] == target_data['vc']:
+                st.write(f"⭐ **{my_data['c']}**: Your Captain vs their Vice-Captain.")
+            if (my_data['c'] in target_data['p'] and my_data['c'] != target_data['c'] and my_data['c'] != target_data['vc']):
+                st.write(f"⭐ **{my_data['c']}**: Your Captain vs their Regular.")
+            if my_data['vc'] in target_data['p'] and my_data['vc'] not in [target_data['c'], target_data['vc']]:
+                st.write(f"🎖️ **{my_data['vc']}**: Your Vice-Captain vs their Regular.")
+
+        # 3. Logic: Who to Oppose
+        with col_oppose:
+            st.error("🚫 PLAYERS TO OPPOSE")
+
+            # Their Unique Players
+            their_uniques = target_data['p'] - my_data['p']
+            for p in their_uniques:
+                if p == my_data['c']:
+                    st.write(f"💀 **{p}**: Their Captain, you don't have him.")
+                elif p == my_data['vc']:
+                    st.write(f"⚠️ **{p}**: Their Vice-Captain, you don't have him.")
+                else:
+                    st.write(f"❌ **{p}**: They have him, you don't.")
+
+            # Their Captaincy Advantages
+            if target_data['c'] == my_data['vc']:
+                st.write(f"💀 **{target_data['c']}**: Their Captain vs your Vice-Captain.")
+            if (target_data['c'] in my_data['p'] and target_data['c'] != my_data['c'] and target_data['c'] != my_data['vc']):
+                st.write(f"💀 **{target_data['c']}**: Their Captain vs your Regular.")
+            if target_data['vc'] in my_data['p'] and target_data['vc'] not in [my_data['c'], my_data['vc']]:
+                st.write(f"⚠️ **{target_data['vc']}**: Their Vice-Captain vs your Regular.")
 
     st.divider()
     st.subheader("Live Player Performance")
