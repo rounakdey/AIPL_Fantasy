@@ -51,3 +51,11 @@ def load_schedule():
 def load_squads():
     # Ensure squads.csv has: Player Name, Role, Team, Category
     return pd.read_csv("squads.csv")
+
+@st.cache_data
+def load_h2h_schedule():
+    # Expects columns: Match, Team1, Team2
+    try:
+        return pd.read_csv("h2h_schedule.csv")
+    except:
+        return pd.DataFrame()

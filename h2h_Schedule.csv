@@ -1,0 +1,351 @@
+﻿Match,Team1,Team2
+1,suicidesquad,Hattimatim Team
+1,Dhurandhar,arkajyoti.bhattacharya@gmail.com
+1,Chhoto ostad,Valar Morghulis
+1,MaushumiBhowmick,donrahul
+1,Deepan,soudeep
+2,MaushumiBhowmick,arkajyoti.bhattacharya@gmail.com
+2,soudeep,Valar Morghulis
+2,Dhurandhar,Hattimatim Team
+2,suicidesquad,Chhoto ostad
+2,Deepan,donrahul
+3,suicidesquad,Dhurandhar
+3,Deepan,arkajyoti.bhattacharya@gmail.com
+3,soudeep,MaushumiBhowmick
+3,Chhoto ostad,donrahul
+3,Hattimatim Team,Valar Morghulis
+4,Dhurandhar,donrahul
+4,Hattimatim Team,soudeep
+4,arkajyoti.bhattacharya@gmail.com,Valar Morghulis
+4,Deepan,Chhoto ostad
+4,suicidesquad,MaushumiBhowmick
+5,arkajyoti.bhattacharya@gmail.com,donrahul
+5,Deepan,MaushumiBhowmick
+5,Dhurandhar,Valar Morghulis
+5,suicidesquad,soudeep
+5,Chhoto ostad,Hattimatim Team
+6,Dhurandhar,Chhoto ostad
+6,Deepan,suicidesquad
+6,Hattimatim Team,donrahul
+6,MaushumiBhowmick,Valar Morghulis
+6,soudeep,arkajyoti.bhattacharya@gmail.com
+7,Hattimatim Team,arkajyoti.bhattacharya@gmail.com
+7,Chhoto ostad,soudeep
+7,Dhurandhar,MaushumiBhowmick
+7,Deepan,Valar Morghulis
+7,suicidesquad,donrahul
+8,Dhurandhar,soudeep
+8,donrahul,Valar Morghulis
+8,suicidesquad,arkajyoti.bhattacharya@gmail.com
+8,Chhoto ostad,MaushumiBhowmick
+8,Deepan,Hattimatim Team
+9,Hattimatim Team,MaushumiBhowmick
+9,suicidesquad,Valar Morghulis
+9,Chhoto ostad,arkajyoti.bhattacharya@gmail.com
+9,soudeep,donrahul
+9,Deepan,Dhurandhar
+10,MaushumiBhowmick,soudeep
+10,Hattimatim Team,Dhurandhar
+10,Valar Morghulis,donrahul
+10,Deepan,Chhoto ostad
+10,suicidesquad,arkajyoti.bhattacharya@gmail.com
+11,Deepan,Dhurandhar
+11,arkajyoti.bhattacharya@gmail.com,donrahul
+11,Hattimatim Team,soudeep
+11,MaushumiBhowmick,Valar Morghulis
+11,suicidesquad,Chhoto ostad
+12,Cancelled,Cancelled
+12,Cancelled,Cancelled
+12,Cancelled,Cancelled
+12,Cancelled,Cancelled
+12,Cancelled,Cancelled
+13,MaushumiBhowmick,Hattimatim Team
+13,suicidesquad,Dhurandhar
+13,arkajyoti.bhattacharya@gmail.com,Deepan
+13,Valar Morghulis,Chhoto ostad
+13,soudeep,donrahul
+14,Hattimatim Team,Chhoto ostad
+14,soudeep,arkajyoti.bhattacharya@gmail.com
+14,Dhurandhar,donrahul
+14,suicidesquad,Valar Morghulis
+14,MaushumiBhowmick,Deepan
+15,Dhurandhar,Chhoto ostad
+15,suicidesquad,Deepan
+15,Hattimatim Team,donrahul
+15,MaushumiBhowmick,arkajyoti.bhattacharya@gmail.com
+15,Valar Morghulis,soudeep
+16,Hattimatim Team,Valar Morghulis
+16,suicidesquad,MaushumiBhowmick
+16,soudeep,Chhoto ostad
+16,Deepan,donrahul
+16,arkajyoti.bhattacharya@gmail.com,Dhurandhar
+17,soudeep,Dhurandhar
+17,Valar Morghulis,arkajyoti.bhattacharya@gmail.com
+17,Hattimatim Team,Deepan
+17,suicidesquad,donrahul
+17,MaushumiBhowmick,Chhoto ostad
+18,Hattimatim Team,arkajyoti.bhattacharya@gmail.com
+18,Chhoto ostad,donrahul
+18,MaushumiBhowmick,Dhurandhar
+18,Valar Morghulis,Deepan
+18,suicidesquad,soudeep
+19,soudeep,Deepan
+19,MaushumiBhowmick,donrahul
+19,Valar Morghulis,Dhurandhar
+19,arkajyoti.bhattacharya@gmail.com,Chhoto ostad
+19,suicidesquad,Hattimatim Team
+20,Dhurandhar,Chhoto ostad
+20,Valar Morghulis,soudeep
+20,Hattimatim Team,Deepan
+20,suicidesquad,donrahul
+20,MaushumiBhowmick,arkajyoti.bhattacharya@gmail.com
+21,suicidesquad,soudeep
+21,arkajyoti.bhattacharya@gmail.com,Deepan
+21,Valar Morghulis,Chhoto ostad
+21,Dhurandhar,Hattimatim Team
+21,MaushumiBhowmick,donrahul
+22,Dhurandhar,Valar Morghulis
+22,MaushumiBhowmick,soudeep
+22,arkajyoti.bhattacharya@gmail.com,suicidesquad
+22,Hattimatim Team,donrahul
+22,Chhoto ostad,Deepan
+23,Valar Morghulis,donrahul
+23,Chhoto ostad,arkajyoti.bhattacharya@gmail.com
+23,soudeep,Deepan
+23,MaushumiBhowmick,Hattimatim Team
+23,Dhurandhar,suicidesquad
+24,soudeep,donrahul
+24,MaushumiBhowmick,suicidesquad
+24,Valar Morghulis,Deepan
+24,Dhurandhar,arkajyoti.bhattacharya@gmail.com
+24,Hattimatim Team,Chhoto ostad
+25,Valar Morghulis,Hattimatim Team
+25,MaushumiBhowmick,Dhurandhar
+25,Chhoto ostad,donrahul
+25,suicidesquad,Deepan
+25,arkajyoti.bhattacharya@gmail.com,soudeep
+26,Chhoto ostad,soudeep
+26,Hattimatim Team,arkajyoti.bhattacharya@gmail.com
+26,Valar Morghulis,suicidesquad
+26,MaushumiBhowmick,Deepan
+26,Dhurandhar,donrahul
+27,Valar Morghulis,arkajyoti.bhattacharya@gmail.com
+27,donrahul,Deepan
+27,Dhurandhar,soudeep
+27,Hattimatim Team,suicidesquad
+27,MaushumiBhowmick,Chhoto ostad
+28,Chhoto ostad,suicidesquad
+28,Dhurandhar,Deepan
+28,Hattimatim Team,soudeep
+28,arkajyoti.bhattacharya@gmail.com,donrahul
+28,MaushumiBhowmick,Valar Morghulis
+29,MaushumiBhowmick,Chhoto ostad
+29,Valar Morghulis,Hattimatim Team
+29,Dhurandhar,donrahul
+29,soudeep,Deepan
+29,arkajyoti.bhattacharya@gmail.com,suicidesquad
+30,soudeep,Hattimatim Team
+30,suicidesquad,donrahul
+30,Valar Morghulis,Chhoto ostad
+30,MaushumiBhowmick,Dhurandhar
+30,arkajyoti.bhattacharya@gmail.com,Deepan
+31,MaushumiBhowmick,Valar Morghulis
+31,arkajyoti.bhattacharya@gmail.com,Hattimatim Team
+31,suicidesquad,soudeep
+31,Dhurandhar,Deepan
+31,Chhoto ostad,donrahul
+32,Valar Morghulis,Deepan
+32,Chhoto ostad,suicidesquad
+32,Hattimatim Team,donrahul
+32,arkajyoti.bhattacharya@gmail.com,Dhurandhar
+32,MaushumiBhowmick,soudeep
+33,Hattimatim Team,Deepan
+33,arkajyoti.bhattacharya@gmail.com,soudeep
+33,Valar Morghulis,donrahul
+33,MaushumiBhowmick,suicidesquad
+33,Dhurandhar,Chhoto ostad
+34,Valar Morghulis,Dhurandhar
+34,arkajyoti.bhattacharya@gmail.com,MaushumiBhowmick
+34,Chhoto ostad,Deepan
+34,soudeep,donrahul
+34,suicidesquad,Hattimatim Team
+35,Chhoto ostad,Hattimatim Team
+35,Dhurandhar,suicidesquad
+35,Valar Morghulis,soudeep
+35,arkajyoti.bhattacharya@gmail.com,donrahul
+35,MaushumiBhowmick,Deepan
+36,Valar Morghulis,suicidesquad
+36,Deepan,donrahul
+36,MaushumiBhowmick,Hattimatim Team
+36,Dhurandhar,soudeep
+36,arkajyoti.bhattacharya@gmail.com,Chhoto ostad
+37,Chhoto ostad,soudeep
+37,MaushumiBhowmick,donrahul
+37,Dhurandhar,Hattimatim Team
+37,suicidesquad,Deepan
+37,arkajyoti.bhattacharya@gmail.com,Valar Morghulis
+38,soudeep,arkajyoti.bhattacharya@gmail.com
+38,Hattimatim Team,Chhoto ostad
+38,MaushumiBhowmick,suicidesquad
+38,donrahul,Deepan
+38,Valar Morghulis,Dhurandhar
+39,donrahul,Chhoto ostad
+39,Dhurandhar,suicidesquad
+39,Hattimatim Team,arkajyoti.bhattacharya@gmail.com
+39,soudeep,MaushumiBhowmick
+39,Valar Morghulis,Deepan
+40,soudeep,Hattimatim Team
+40,Valar Morghulis,Chhoto ostad
+40,Dhurandhar,donrahul
+40,MaushumiBhowmick,Deepan
+40,arkajyoti.bhattacharya@gmail.com,suicidesquad
+41,Hattimatim Team,Deepan
+41,arkajyoti.bhattacharya@gmail.com,Dhurandhar
+41,Chhoto ostad,suicidesquad
+41,Valar Morghulis,MaushumiBhowmick
+41,soudeep,donrahul
+42,Chhoto ostad,Deepan
+42,Valar Morghulis,donrahul
+42,Hattimatim Team,suicidesquad
+42,soudeep,Dhurandhar
+42,MaushumiBhowmick,arkajyoti.bhattacharya@gmail.com
+43,Hattimatim Team,MaushumiBhowmick
+43,Valar Morghulis,soudeep
+43,arkajyoti.bhattacharya@gmail.com,Deepan
+43,donrahul,suicidesquad
+43,Dhurandhar,Chhoto ostad
+44,arkajyoti.bhattacharya@gmail.com,Chhoto ostad
+44,MaushumiBhowmick,Dhurandhar
+44,Hattimatim Team,donrahul
+44,Valar Morghulis,suicidesquad
+44,soudeep,Deepan
+45,Hattimatim Team,Dhurandhar
+45,Deepan,suicidesquad
+45,soudeep,Chhoto ostad
+45,MaushumiBhowmick,donrahul
+45,Valar Morghulis,arkajyoti.bhattacharya@gmail.com
+46,arkajyoti.bhattacharya@gmail.com,donrahul
+46,soudeep,suicidesquad
+46,MaushumiBhowmick,Chhoto ostad
+46,Dhurandhar,Deepan
+46,Valar Morghulis,Hattimatim Team
+47,Deepan,arkajyoti.bhattacharya@gmail.com
+47,Hattimatim Team,suicidesquad
+47,Chhoto ostad,Valar Morghulis
+47,MaushumiBhowmick,soudeep
+47,donrahul,Dhurandhar
+48,MaushumiBhowmick,suicidesquad
+48,Dhurandhar,Valar Morghulis
+48,Hattimatim Team,arkajyoti.bhattacharya@gmail.com
+48,Deepan,Chhoto ostad
+48,donrahul,soudeep
+49,Deepan,Hattimatim Team
+49,donrahul,suicidesquad
+49,Dhurandhar,MaushumiBhowmick
+49,Chhoto ostad,soudeep
+49,arkajyoti.bhattacharya@gmail.com,Valar Morghulis
+50,Hattimatim Team,soudeep
+50,arkajyoti.bhattacharya@gmail.com,Dhurandhar
+50,suicidesquad,Valar Morghulis
+50,donrahul,Chhoto ostad
+50,Deepan,MaushumiBhowmick
+51,suicidesquad,soudeep
+51,donrahul,MaushumiBhowmick
+51,Hattimatim Team,Valar Morghulis
+51,Deepan,Dhurandhar
+51,Chhoto ostad,arkajyoti.bhattacharya@gmail.com
+52,Hattimatim Team,Chhoto ostad
+52,donrahul,Deepan
+52,arkajyoti.bhattacharya@gmail.com,soudeep
+52,MaushumiBhowmick,Valar Morghulis
+52,Dhurandhar,suicidesquad
+53,arkajyoti.bhattacharya@gmail.com,suicidesquad
+53,Chhoto ostad,Dhurandhar
+53,Hattimatim Team,MaushumiBhowmick
+53,donrahul,Valar Morghulis
+53,Deepan,soudeep
+54,Hattimatim Team,Dhurandhar
+54,soudeep,Valar Morghulis
+54,Deepan,suicidesquad
+54,Chhoto ostad,MaushumiBhowmick
+54,donrahul,arkajyoti.bhattacharya@gmail.com
+55,arkajyoti.bhattacharya@gmail.com,MaushumiBhowmick
+55,Deepan,Valar Morghulis
+55,Chhoto ostad,suicidesquad
+55,Dhurandhar,soudeep
+55,donrahul,Hattimatim Team
+56,suicidesquad,Hattimatim Team
+56,Dhurandhar,arkajyoti.bhattacharya@gmail.com
+56,Chhoto ostad,Valar Morghulis
+56,MaushumiBhowmick,donrahul
+56,Deepan,soudeep
+57,MaushumiBhowmick,arkajyoti.bhattacharya@gmail.com
+57,soudeep,Valar Morghulis
+57,Dhurandhar,Hattimatim Team
+57,suicidesquad,Chhoto ostad
+57,Deepan,donrahul
+58,suicidesquad,Dhurandhar
+58,Deepan,arkajyoti.bhattacharya@gmail.com
+58,soudeep,MaushumiBhowmick
+58,Chhoto ostad,donrahul
+58,Hattimatim Team,Valar Morghulis
+59,Dhurandhar,donrahul
+59,Hattimatim Team,soudeep
+59,arkajyoti.bhattacharya@gmail.com,Valar Morghulis
+59,Deepan,Chhoto ostad
+59,suicidesquad,MaushumiBhowmick
+60,arkajyoti.bhattacharya@gmail.com,donrahul
+60,Deepan,MaushumiBhowmick
+60,Dhurandhar,Valar Morghulis
+60,suicidesquad,soudeep
+60,Chhoto ostad,Hattimatim Team
+61,Dhurandhar,Chhoto ostad
+61,Deepan,suicidesquad
+61,Hattimatim Team,donrahul
+61,MaushumiBhowmick,Valar Morghulis
+61,soudeep,arkajyoti.bhattacharya@gmail.com
+62,Hattimatim Team,arkajyoti.bhattacharya@gmail.com
+62,Chhoto ostad,soudeep
+62,Dhurandhar,MaushumiBhowmick
+62,Deepan,Valar Morghulis
+62,suicidesquad,donrahul
+63,Dhurandhar,soudeep
+63,donrahul,Valar Morghulis
+63,suicidesquad,arkajyoti.bhattacharya@gmail.com
+63,Chhoto ostad,MaushumiBhowmick
+63,Deepan,Hattimatim Team
+64,Hattimatim Team,MaushumiBhowmick
+64,suicidesquad,Valar Morghulis
+64,Chhoto ostad,arkajyoti.bhattacharya@gmail.com
+64,soudeep,donrahul
+64,Deepan,Dhurandhar
+65,suicidesquad,Hattimatim Team
+65,Dhurandhar,arkajyoti.bhattacharya@gmail.com
+65,Chhoto ostad,Valar Morghulis
+65,MaushumiBhowmick,donrahul
+65,Deepan,soudeep
+66,MaushumiBhowmick,arkajyoti.bhattacharya@gmail.com
+66,soudeep,Valar Morghulis
+66,Dhurandhar,Hattimatim Team
+66,suicidesquad,Chhoto ostad
+66,Deepan,donrahul
+67,suicidesquad,Dhurandhar
+67,Deepan,arkajyoti.bhattacharya@gmail.com
+67,soudeep,MaushumiBhowmick
+67,Chhoto ostad,donrahul
+67,Hattimatim Team,Valar Morghulis
+68,Dhurandhar,donrahul
+68,Hattimatim Team,soudeep
+68,arkajyoti.bhattacharya@gmail.com,Valar Morghulis
+68,Deepan,Chhoto ostad
+68,suicidesquad,MaushumiBhowmick
+69,arkajyoti.bhattacharya@gmail.com,donrahul
+69,Deepan,MaushumiBhowmick
+69,Dhurandhar,Valar Morghulis
+69,suicidesquad,soudeep
+69,Chhoto ostad,Hattimatim Team
+70,Dhurandhar,Chhoto ostad
+70,Deepan,suicidesquad
+70,Hattimatim Team,donrahul
+70,MaushumiBhowmick,Valar Morghulis
+70,soudeep,arkajyoti.bhattacharya@gmail.com
