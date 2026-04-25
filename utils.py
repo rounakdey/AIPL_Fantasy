@@ -11,6 +11,26 @@ rounds = {
     'round5': [f"match_{i}" for i in range(38, 47)],
 }
 
+def get_three_part_name_map(player_list):
+    """
+    Creates a mapping where variations of 3-part names (e.g., First Last,
+    Middle Last, First Middle) point back to the full 3-part name.
+    """
+    name_map = {}
+    for full_name in player_list:
+        parts = full_name.split()
+        if len(parts) == 3:
+            first, middle, last = parts[0], parts[1], parts[2]
+            # Common Cricbuzz variations for 3-part names
+            variations = [
+                f"{first} {last}",   # First Last
+                f"{middle} {last}",  # Middle Last
+                f"{first} {middle}"  # First Middle
+            ]
+            for var in variations:
+                name_map[var] = full_name
+    return name_map
+
 def clean_name(name):
     return re.sub(r'\(.*?\)', '', name).strip()
 

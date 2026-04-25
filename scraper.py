@@ -6,6 +6,9 @@ from datetime import datetime
 import streamlit as st
 from utils import clean_name, rounds
 
+# Ajay Jadav Mandal, Aaqib Nabi Dar, M Shahrukh Khan, Ravisrinivasan Sai Kishore, Arjun Sachin Tendulkar,
+# Akash Maharaj Singh, Digvesh Singh Rathi, Mohammed Salahuddin Izhar, Aman Rao Perala,
+# Yash Raj Punja, Yudhvir Singh Charak, Nitish Kumar Reddy, Onkar Tukaram Tarmale
 
 def parse_fielding(dismissal_text):
     fielders = []
@@ -37,10 +40,15 @@ def get_live_stats(url, match_id):
             })
 
         # Load squads to check roles
-        from utils import load_squads
+        from utils import load_squads, get_three_part_name_map
         squad_df = load_squads()
-        # Create a mapping of Player Name -> Role
+        all_squad_players = squad_df['Player Name'].tolist()
+
+        # Mapping for Roles
         role_map = squad_df.set_index('Player Name')['Role'].str.strip().str.title().to_dict()
+
+        # Mapping for 3-part name resolution
+        name_resolver = get_three_part_name_map(all_squad_players)
 
         st.session_state.last_refresh = datetime.now().strftime("%H:%M:%S")
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -81,7 +89,10 @@ def get_live_stats(url, match_id):
                     if f"{name}_{d_text_lower}" not in processed:
                         for f in parse_fielding(raw_d_text):
                             f_name = f['name']
-                            fielding_pts[f_name] = fielding_pts.get(f_name, 0) + SCORING.get(f['type'], 0)
+                            # If the parsed name is a 2-part version of a 3-part name,
+                            # map it back to the official full name.
+                            f_resolved_name = name_resolver.get(f_name, f_name)
+                            fielding_pts[f_resolved_name] = fielding_pts.get(f_resolved_name, 0) + SCORING.get(f['type'], 0)
                         processed.add(f"{name}_{d_text_lower}")
                 else:
                     d_text_lower = "not out"
