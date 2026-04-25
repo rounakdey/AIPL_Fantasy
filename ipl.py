@@ -387,6 +387,7 @@ with t2:
 
 with t1:
     round3_matches = [f"match_{i}" for i in range(20, 29)]
+    round5_matches = [f"match_{i}" for i in range(38, 47)]
     st.header(f"Standings: {match_info['Team 1']} vs {match_info['Team 2']}")
     cA, cB, cC = st.columns([1, 1, 1])
     if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url, match_id)
@@ -618,19 +619,35 @@ with t1:
     # Show the player points table only if it actually has data
     if not live_df.empty:
         display_df = live_df.copy()
+        if match_id not in round3_matches: display_df.drop(columns = ['Opener'], inplace = True)
+
+        # 1. Identify active managers and count player picks
+        active_ld = {m: data for m, data in ld.items() if data['c'] != "-"}
+
+        # Create a frequency map for players
+        pick_counts = {}
+        for mgr_data in active_ld.values():
+            for player in mgr_data['p']:
+                pick_counts[player] = pick_counts.get(player, 0) + 1
+
+        # 2. Prepare the display dataframe
+        # Insert 'Picked By' column right after 'Total Points'
+        # First, find the index of Total Points
+        total_pts_idx = display_df.columns.get_loc("Total Points") + 1
+
+        # Calculate the counts for the column
+        display_df.insert(
+            total_pts_idx,
+            "Picked By",
+            display_df['Player'].map(lambda x: pick_counts.get(x, 0))
+        )
         # Add columns for each manager
-        for mgr_name, mgr_data in ld.items():
-            # Skip managers who haven't picked a team (C is still "-")
-            if mgr_data['c'] == "-":
-                continue
+        for mgr_name, mgr_data in active_ld.items():
 
             def get_mgr_status(player_name):
-                if player_name == mgr_data['c']:
-                    return "⭐"
-                elif player_name == mgr_data['vc']:
-                    return "🎖️"
-                elif player_name in mgr_data['p']:
-                    return "✅"
+                if player_name == mgr_data['c']: return "⭐"
+                elif player_name == mgr_data['vc']: return "🎖️"
+                elif player_name in mgr_data['p']: return "✅"
                 return ""
 
             display_df[mgr_name[:10]] = display_df['Player'].apply(get_mgr_status)
@@ -654,6 +671,7 @@ with t1:
             {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"},
             {"Category": "Round 3 Specific", "Action": "Per Opener", "Points": "-50"},
             {"Category": "Round 4 Specific", "Action": "Wicket / Hauls (3/5/7)", "Points": "+30 / +50 / +100 / +200"},
+            {"Category": "Round 5 Specific", "Action": "Selection Rate Multiplier", "Points": "(10 / Picked by) x Total Points"},
         ]))
 
 if is_match_started:
