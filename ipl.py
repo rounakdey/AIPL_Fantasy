@@ -247,8 +247,30 @@ with t2:
                 """)
 
 with t1:
-    st.header(f"Standings: Match {match_id.replace('_', ' ').upper()}, "
-              f"{match_info['Team 1']} vs {match_info['Team 2']}")
+    header_round_text = ""
+    if match_id in rounds['round1']:
+        header_round_text = "Round 1 (Vanilla):"
+    elif match_id in rounds['round2']:
+        header_round_text = "Round 2 (Foreigner Restriction):"
+    elif match_id in rounds['round3']:
+        header_round_text = "Round 3 (Opener Penalty):"
+    elif match_id in rounds['round4']:
+        header_round_text = "Round 4 (Bowler Bonus):"
+    elif match_id in rounds['round5']:
+        header_round_text = "Round 5 (Unique Player Bonus):"
+    else:
+        header_round_text = "Rules TBD:"
+
+    # Construct the full HTML string
+    full_header_html = f"""
+    <div style="font-size:32px; font-weight:bold; line-height:1.2;">
+        💎 {header_round_text}<br>
+        {match_id.replace('_', ' ').upper()}, {match_info['Team 1']} vs {match_info['Team 2']}
+    </div>
+    <hr style="margin-top:5px; margin-bottom:20px; border:0; border-top:2px solid #31333F; opacity:0.2;">
+    """
+
+    st.markdown(full_header_html, unsafe_allow_html=True)
 
     cA, cB, cC = st.columns([1, 1, 1])
     if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url, match_id)

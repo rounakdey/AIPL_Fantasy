@@ -6,9 +6,6 @@ from datetime import datetime
 import streamlit as st
 from utils import clean_name, rounds
 
-# Ajay Jadav Mandal, Aaqib Nabi Dar, M Shahrukh Khan, Ravisrinivasan Sai Kishore, Arjun Sachin Tendulkar,
-# Akash Maharaj Singh, Digvesh Singh Rathi, Mohammed Salahuddin Izhar, Aman Rao Perala,
-# Yash Raj Punja, Yudhvir Singh Charak, Nitish Kumar Reddy, Onkar Tukaram Tarmale
 
 def parse_fielding(dismissal_text):
     fielders = []

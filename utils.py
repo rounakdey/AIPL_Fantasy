@@ -6,6 +6,8 @@ from datetime import datetime
 
 # Define the special rounds globally
 rounds = {
+    'round1': [f"match_{i}" for i in range(1, 10)],
+    'round2': [f"match_{i}" for i in range(10, 20)],
     'round3': [f"match_{i}" for i in range(20, 29)],
     'round4': [f"match_{i}" for i in range(29, 38)],
     'round5': [f"match_{i}" for i in range(38, 47)],
