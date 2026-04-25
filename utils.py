@@ -4,6 +4,13 @@ import hashlib
 import re
 from datetime import datetime
 
+# Define the special rounds globally
+rounds = {
+    'round3': [f"match_{i}" for i in range(20, 29)],
+    'round4': [f"match_{i}" for i in range(29, 38)],
+    'round5': [f"match_{i}" for i in range(38, 47)],
+}
+
 def clean_name(name):
     return re.sub(r'\(.*?\)', '', name).strip()
 
@@ -59,3 +66,31 @@ def load_h2h_schedule():
         return pd.read_csv("h2h_schedule.csv")
     except:
         return pd.DataFrame()
+
+
+def prepare_pick_counts(match_id, ld, live_df):
+    """
+    Calculates how many active managers picked each player and
+    adds it as a 'Picked By' column to the live_df.
+    """
+    if live_df.empty:
+        return live_df
+
+    # 1. Identify active managers (those who locked in a Captain)
+    active_ld = {m: data for m, data in ld.items() if data['c'] != "-"}
+
+    # 2. Count occurrences of each player
+    pick_counts = {}
+    for mgr_data in active_ld.values():
+        for player in mgr_data['p']:
+            pick_counts[player] = pick_counts.get(player, 0) + 1
+
+    # 3. Map the counts to the live_df
+    # We use .get(x, 0) to handle players who are playing but picked by 0 managers
+    live_df['Picked By'] = live_df['Player'].map(lambda x: pick_counts.get(x, 0))
+    live_df['New Points'] = live_df.apply(
+        lambda row: (row['Total Points'] * 10 / row['Picked By']) if row['Picked By'] > 0 else row['Total Points'],
+        axis=1
+    )
+    live_df.rename(columns = {'Total Points': 'Scored Points', 'New Points': 'Total Points'}, inplace = True)
+    return live_df

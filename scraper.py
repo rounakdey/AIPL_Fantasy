@@ -4,7 +4,7 @@ import re
 import pandas as pd
 from datetime import datetime
 import streamlit as st
-from utils import clean_name
+from utils import clean_name, rounds
 
 
 def parse_fielding(dismissal_text):
@@ -31,8 +31,7 @@ def get_live_stats(url, match_id):
             'catch': 15, 'stumping': 10, 'runout': 10
         }
 
-        round4_matches = [f"match_{i}" for i in range(29, 38)]
-        if match_id in round4_matches:
+        if match_id in rounds['round4']:
             SCORING.update({
                 'wicket': 30, 'threewicket': 50, 'fivewicket': 100, 'sevenwicket': 200
             })

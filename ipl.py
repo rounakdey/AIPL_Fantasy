@@ -10,6 +10,12 @@ import utils
 import database as db
 import scraper
 
+from utils import rounds
+from tabs.selection import render_selection
+from tabs.matchups import render_matchups
+from tabs.admin_edit import render_admin
+from tabs.leaderboard import render_leaderboard, render_strategy, render_performance
+
 # Initialize Cookie Manager at the very top of the script
 cookie_manager = stx.CookieManager()
 
@@ -226,153 +232,8 @@ with t2:
                 st.session_state.lineup_match = match_id
             else:
                 st.session_state.lineups = {}
-        lineups = st.session_state.get("lineups", {})
 
-        if is_match_started and lock_master_flag:
-            # --- VIEW ONLY MODE ---
-            st.warning("🔒 Match has started! Team selection is now locked.")
-
-            # Load the user's saved team to show them what they picked
-            ld = db.load_league_data(match_id)
-            my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
-
-            if my_data['c'] != "-":
-                st.subheader("Your Locked XI")
-                st.write(f"⭐ **Captain:** {my_data['c']}")
-                st.write(f"🎖️ **Vice-Captain:** {my_data['vc']}")
-
-                # Show the rest of the players in a simple list or read-only columns
-                p_list = sorted(list(my_data['p'] - {my_data['c'], my_data['vc']}))
-                st.write("🏃 **Players:** " + ", ".join(p_list))
-            else:
-                st.info("You did not submit a team for this match.")
-        else:
-            # --- MOBILE COMPACT CSS ---
-            st.markdown("""
-                        <style>
-                            /* Force columns to stay side-by-side on mobile */
-                            [data-testid="column"] {
-                                width: calc(50% - 1rem) !important;
-                                flex: 1 1 calc(50% - 1rem) !important;
-                                min-width: calc(50% - 1rem) !important;
-                            }
-                            /* Tighten the spacing between checkboxes */
-                            .stCheckbox {
-                                margin-bottom: -15px;
-                            }
-                            /* Font size adjustment for names */
-                            .stCheckbox label p {
-                                font-size: 14px !important;
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                            }
-                        </style>
-                    """, unsafe_allow_html=True)
-
-            # Mapping long roles to icons for space
-            role_icons = {
-                "Batsman": "🏏",
-                "Bowler": "⚾",
-                "WK-Batsman": "🧤",
-                "Batting Allrounder": "🏏⚾",
-                "Bowling Allrounder": "⚾🏏"
-            }
-            st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}")
-
-            # Display Rules
-            with st.expander("Show Selection Rules 📜"):
-                st.markdown("""
-                * **Total:** Exactly 11 players.
-                * **Team Limit:** Max 8 players from one team.
-                * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
-                """)
-
-            sq = utils.load_squads()
-            ld = db.load_league_data(match_id)
-            my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
-
-            lineups = st.session_state.get("lineups", {})
-
-            t1_p_raw = sq[sq['Team'] == match_info['Team 1']]
-            t2_p_raw = sq[sq['Team'] == match_info['Team 2']]
-
-            # Apply the new sort logic
-            t1_p = utils.sort_squad(t1_p_raw.copy(), lineups)
-            t2_p = utils.sort_squad(t2_p_raw.copy(), lineups)
-
-            selected_players = []
-            colL, colR = st.columns(2)
-
-            # Display Columns with Icons
-            for col, team_df, team_name in [(colL, t1_p, match_info['Team 1']), (colR, t2_p, match_info['Team 2'])]:
-                with col:
-                    st.subheader(team_name[:3].upper())  # Shorten name (e.g., RCB)
-                    for _, row in team_df.iterrows():
-                        p_n = row['Player Name']
-                        role = row['Role']
-                        icon = role_icons.get(role, "")
-                        os_icon = "✈️" if str(row.get('Category', '')).strip() == "Overseas" else ""
-                        # --- Lineup Dot ---
-                        status_dot = lineups.get(p_n, "")  # Will be 🟢, 🟣, 🔴 or empty
-                        # Create a very compact label: Icon + ShortName + OS
-                        label = f"{icon}{p_n}{os_icon}{status_dot}"
-
-                        if st.checkbox(label, value=(p_n in my_data['p']), key=f"sel_{team_name}_{p_n}"):
-                            selected_players.append(p_n)
-
-            # --- VALIDATION LOGIC ---
-            st.divider()
-            sel_df = sq[sq['Player Name'].isin(selected_players)]
-
-            overseas_count = len(sel_df[sel_df['Category'] == 'Overseas'])
-            team1_count = len(sel_df[sel_df['Team'] == match_info['Team 1']])
-            team2_count = len(sel_df[sel_df['Team'] == match_info['Team 2']])
-
-            # Role Counts
-            n_bat = len(sel_df[sel_df['Role'] == 'Batsman'])
-            n_bowl = len(sel_df[sel_df['Role'] == 'Bowler'])
-            n_wk = len(sel_df[sel_df['Role'] == 'WK-Batsman'])
-            n_ar = len(sel_df[sel_df['Role'].isin(['Batting Allrounder', 'Bowling Allrounder'])])
-
-            # Validation Checks
-            valid_count = (len(selected_players) == 11)
-            valid_overseas = (overseas_count <= 11)
-            valid_teams = (team1_count <= 8 and team2_count <= 8)
-            valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
-
-            # UI Indicators
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Selected", f"{len(selected_players)}/11")
-            c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
-                      delta_color="inverse")
-            c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
-            c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
-
-            if valid_count and valid_overseas and valid_teams and valid_roles:
-                c1, c2 = st.columns(2)
-                with c1:
-                    cap = st.selectbox("Select Captain (2x)", selected_players,
-                                       index=selected_players.index(my_data['c']) if my_data[
-                                                                                         'c'] in selected_players else 0)
-                with c2:
-                    # Filter out the selected Captain from VC options
-                    vc_options = [p for p in selected_players if p != cap]
-                    vc = st.selectbox("Select Vice-Captain (1.5x)", vc_options,
-                                      index=vc_options.index(my_data['vc']) if my_data['vc'] in vc_options else 0)
-
-                if st.button("💾 Save My Team"):
-                    db.save_user_team(st.session_state.username, match_id, selected_players, cap, vc)
-                    st.success("Selection Locked!")
-            else:
-                errors = []
-                if not valid_count: errors.append("Select exactly 11 players.")
-                if not valid_overseas: errors.append("Max 11 overseas✈️ players allowed.")
-                if not valid_teams: errors.append("Max 8 players from a single team.")
-                if not valid_roles: errors.append("Must have at least 1 Batsman, 1 Bowler, 1 WK, and 1 Allrounder.")
-
-                for err in errors:
-                    st.warning(err)
+        render_selection(match_id, match_info, lock_master_flag, is_match_started)
     else:
         st.subheader("🏏 Ready to build your XI?")
         st.info("Please **Log In** or **Join** via the sidebar to select your team for this match.")
@@ -386,9 +247,9 @@ with t2:
                 """)
 
 with t1:
-    round3_matches = [f"match_{i}" for i in range(20, 29)]
-    round5_matches = [f"match_{i}" for i in range(38, 47)]
-    st.header(f"Standings: {match_info['Team 1']} vs {match_info['Team 2']}")
+    st.header(f"Standings: Match {match_id.replace('_', ' ').upper()}, "
+              f"{match_info['Team 1']} vs {match_info['Team 2']}")
+
     cA, cB, cC = st.columns([1, 1, 1])
     if cA.button("🔄 FETCH NOW", key="f1"): st.session_state.live_df = scraper.get_live_stats(current_url, match_id)
     st.session_state.refresh_enabled = cB.checkbox("Auto Refresh (60s)", value=st.session_state.refresh_enabled,
@@ -397,264 +258,28 @@ with t1:
 
     live_df = st.session_state.get('live_df', pd.DataFrame())
     ld = db.load_league_data(match_id)
+
+    # Add Pick counts and Scale scores if round 5
+    if match_id in rounds['round5']:
+        if not live_df.empty: live_df = utils.prepare_pick_counts(match_id, ld, live_df)
+
+    # --- Leaderboard ---
     if ld:
-        standings = []
-        # Create a points map if live data exists, else empty dict
-        if not live_df.empty:
-            p_map = live_df.set_index('Player')['Total Points'].to_dict()
-            opener_set = set(live_df[live_df['Opener'] == True]['Player'])
-        else:
-            p_map = {}
-            opener_set = set()
-
-        for u, info in ld.items():
-            # --- NEW FILTER LOGIC ---
-            # Skip this manager if they haven't picked a captain yet
-            if info['c'] == "-":
-                continue
-
-            # Calculate score only if p_map is not empty, otherwise default to 0
-            total_score = 0
-            opener_count = 0
-            if p_map:
-                for n in info['p']:
-                    p_pts = p_map.get(n, 0)
-                    if n == info['c']:
-                        total_score += p_pts * 2
-                    elif n == info['vc']:
-                        total_score += p_pts * 1.5
-                    else:
-                        total_score += p_pts
-                    # Check for opener penalty
-                    if n in opener_set:
-                        opener_count += 1
-
-                # Apply Penalty: -50 per opener
-                if match_id in round3_matches: total_score -= (opener_count * 50)
-
-            # Privacy: Hide C/VC if match hasn't started
-            ldbrd_row = {
-                "Manager": u,
-                "Score": int(total_score),
-                "Captain": info['c'] if is_match_started else "🔒 Hidden",
-                "Vice-Captain": info['vc'] if is_match_started else "🔒 Hidden",
-            }
-            if match_id in round3_matches: ldbrd_row["Openers"] = opener_count if is_match_started else "🔒 Hidden"
-            standings.append(ldbrd_row)
-
-        standings = sorted(standings, key=lambda x: (-x['Score'], x['Manager']))
-        # Only show the table if we have at least one active manager
-        if standings:
-            st.table(pd.DataFrame(standings))
-        else:
-            st.info("No managers have locked in their teams for this match yet.")
+        standings = render_leaderboard(match_id, is_match_started, ld, live_df)
     else:
         st.info("No registered managers found in the league.")
+
+    st.divider()
 
     # --- Path to Top and H2H Analysis ---
     if st.session_state.logged_in:
         curr_user = st.session_state.username
         h2h_sched = utils.load_h2h_schedule()
-        # match_id is usually "match_25", convert to numeric index
-        match_num = int(match_id.split('_')[1])
+        render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df)
 
-        # Find the row for this match and user
-        h2h_row = h2h_sched[
-            (h2h_sched['Match'] == match_num) &
-            ((h2h_sched['Team1'] == curr_user) | (h2h_sched['Team2'] == curr_user))
-            ]
-        if not h2h_row.empty:
-            row = h2h_row.iloc[0]
-            opponent = row['Team2'] if row['Team1'] == curr_user else row['Team1']
-        else:
-            opponent = None
-
-        if not live_df.empty and standings:
-            user_in_standings = any(s['Manager'] == curr_user for s in standings)
-            if user_in_standings:
-                if opponent is not None:
-                    # --- H2H Matchup ---
-                    st.subheader(f"⚔️ H2H Strategy: Path to beating {opponent}")
-
-                    # Check if opponent manager have created teams
-                    opp_in_standings = any(s['Manager'] == opponent for s in standings)
-
-                    if not opp_in_standings:
-                        st.info(f"💡 You get a freebie, **{opponent}** has not created a team for this match.")
-                    else:
-                        # 2. Get Score Data from standings
-                        my_score = next(s['Score'] for s in standings if s['Manager'] == curr_user)
-                        opp_score = next(s['Score'] for s in standings if s['Manager'] == opponent)
-                        h2h_diff = my_score - opp_score
-
-                        if h2h_diff > 0:
-                            st.write(f"✅ You are currently leading **{opponent}** by **{h2h_diff}** pts!")
-                        elif h2h_diff < 0:
-                            st.write(f"📈 You are trailing **{opponent}** by **{abs(h2h_diff)}** pts.")
-                        else:
-                            st.write(f"⚖️ You and **{opponent}** are currently tied!")
-
-                        # 3. Structural Comparison (Mirroring your Path to #1 logic)
-                        target_data = ld[opponent]
-                        my_data = ld[curr_user]
-
-                        col_root, col_oppose = st.columns(2)
-
-                        with col_root:
-                            st.success("📣 PLAYERS TO ROOT FOR")
-                            # Unique Players
-                            uniques = my_data['p'] - target_data['p']
-                            for p in uniques:
-                                if p == my_data['c']:
-                                    st.write(f"⭐ **{p}**: Your Captain, they don't have him.")
-                                elif p == my_data['vc']:
-                                    st.write(f"🎖️ **{p}**: Your Vice-Captain, they don't have him.")
-                                else:
-                                    st.write(f"✅ **{p}**: You have him, they don't.")
-
-                            # Captaincy Advantages
-                            if my_data['c'] == target_data['vc']:
-                                st.write(f"⭐ **{my_data['c']}**: Your Captain vs their Vice-Captain.")
-                            if (my_data['c'] in target_data['p'] and my_data['c'] != target_data['c'] and my_data['c'] !=
-                                    target_data['vc']):
-                                st.write(f"⭐ **{my_data['c']}**: Your Captain vs their Regular.")
-                            if my_data['vc'] in target_data['p'] and my_data['vc'] not in [target_data['c'],
-                                                                                           target_data['vc']]:
-                                st.write(f"🎖️ **{my_data['vc']}**: Your Vice-Captain vs their Regular.")
-
-                        with col_oppose:
-                            st.error("🚫 PLAYERS TO OPPOSE")
-                            # Their Unique Players
-                            their_uniques = target_data['p'] - my_data['p']
-                            for p in their_uniques:
-                                if p == target_data['c']:
-                                    st.write(f"💀 **{p}**: Their Captain, you don't have him.")
-                                elif p == target_data['vc']:
-                                    st.write(f"⚠️ **{p}**: Their Vice-Captain, you don't have him.")
-                                else:
-                                    st.write(f"❌ **{p}**: They have him, you don't.")
-
-                            # Their Captaincy Advantages
-                            if target_data['c'] == my_data['vc']:
-                                st.write(f"💀 **{target_data['c']}**: Their Captain vs your Vice-Captain.")
-                            if (target_data['c'] in my_data['p'] and target_data['c'] != my_data['c'] and target_data[
-                                'c'] != my_data['vc']):
-                                st.write(f"💀 **{target_data['c']}**: Their Captain vs your Regular.")
-                            if target_data['vc'] in my_data['p'] and target_data['vc'] not in [my_data['c'], my_data['vc']]:
-                                st.write(f"⚠️ **{target_data['vc']}**: Their Vice-Captain vs your Regular.")
-                else:
-                    st.info(f"🏝️ You have no opponents for this match.")
-
-                # --- Path to Top ---
-                # Only calculate if there are at least two teams
-                if len(standings) > 1:
-                    st.subheader("🎯 Path to #1")
-                    # 1. Identify Target (Top person, or 2nd if user is #1)
-                    if standings[0]['Manager'] == curr_user:
-                        target = standings[1]
-                        st.write(
-                            f"🏆 **You are currently leading!** To stay ahead of **{target['Manager']}**, here is the breakdown:")
-                    else:
-                        target = standings[0]
-                        gap = target['Score'] - next(s['Score'] for s in standings if s['Manager'] == curr_user)
-                        st.write(f"📈 **Chasing {target['Manager']}** ({gap} pts gap). Here is your path to the top:")
-
-                    target_data = ld[target['Manager']]
-                    my_data = ld[curr_user]
-
-                    col_root, col_oppose = st.columns(2)
-
-                    # 2. Logic: Who to Root For
-                    with col_root:
-                        st.success("📣 PLAYERS TO ROOT FOR")
-
-                        # Unique Players
-                        uniques = my_data['p'] - target_data['p']
-                        for p in uniques:
-                            if p == my_data['c']:
-                                st.write(f"⭐ **{p}**: Your Captain, they don't have him.")
-                            elif p == my_data['vc']:
-                                st.write(f"🎖️ **{p}**: Your Vice-Captain, they don't have him.")
-                            else:
-                                st.write(f"✅ **{p}**: You have him, they don't.")
-
-                        # Captaincy Advantages
-                        # If I have C and they have VC/Regular OR I have VC and they have Regular
-                        if my_data['c'] == target_data['vc']:
-                            st.write(f"⭐ **{my_data['c']}**: Your Captain vs their Vice-Captain.")
-                        if (my_data['c'] in target_data['p'] and my_data['c'] != target_data['c'] and my_data['c'] != target_data['vc']):
-                            st.write(f"⭐ **{my_data['c']}**: Your Captain vs their Regular.")
-                        if my_data['vc'] in target_data['p'] and my_data['vc'] not in [target_data['c'], target_data['vc']]:
-                            st.write(f"🎖️ **{my_data['vc']}**: Your Vice-Captain vs their Regular.")
-
-                    # 3. Logic: Who to Oppose
-                    with col_oppose:
-                        st.error("🚫 PLAYERS TO OPPOSE")
-
-                        # Their Unique Players
-                        their_uniques = target_data['p'] - my_data['p']
-                        for p in their_uniques:
-                            if p == target_data['c']:
-                                st.write(f"💀 **{p}**: Their Captain, you don't have him.")
-                            elif p == target_data['vc']:
-                                st.write(f"⚠️ **{p}**: Their Vice-Captain, you don't have him.")
-                            else:
-                                st.write(f"❌ **{p}**: They have him, you don't.")
-
-                        # Their Captaincy Advantages
-                        if target_data['c'] == my_data['vc']:
-                            st.write(f"💀 **{target_data['c']}**: Their Captain vs your Vice-Captain.")
-                        if (target_data['c'] in my_data['p'] and target_data['c'] != my_data['c'] and target_data['c'] != my_data['vc']):
-                            st.write(f"💀 **{target_data['c']}**: Their Captain vs your Regular.")
-                        if target_data['vc'] in my_data['p'] and target_data['vc'] not in [my_data['c'], my_data['vc']]:
-                            st.write(f"⚠️ **{target_data['vc']}**: Their Vice-Captain vs your Regular.")
-        else:
-            if opponent is not None:
-                st.info(f"⚔️ **{opponent}** is your opponent for this match. Make sure to build a team to beat them!")
-            else:
-                st.info("🏝️ You have no opponents for this match.")
-
+    # --- Live Player Performances ---
     st.divider()
-    st.subheader("Live Player Performance")
-    # Show the player points table only if it actually has data
-    if not live_df.empty:
-        display_df = live_df.copy()
-        if match_id not in round3_matches: display_df.drop(columns = ['Opener'], inplace = True)
-
-        # 1. Identify active managers and count player picks
-        active_ld = {m: data for m, data in ld.items() if data['c'] != "-"}
-
-        # Create a frequency map for players
-        pick_counts = {}
-        for mgr_data in active_ld.values():
-            for player in mgr_data['p']:
-                pick_counts[player] = pick_counts.get(player, 0) + 1
-
-        # 2. Prepare the display dataframe
-        # Insert 'Picked By' column right after 'Total Points'
-        # First, find the index of Total Points
-        total_pts_idx = display_df.columns.get_loc("Total Points") + 1
-
-        # Calculate the counts for the column
-        display_df.insert(
-            total_pts_idx,
-            "Picked By",
-            display_df['Player'].map(lambda x: pick_counts.get(x, 0))
-        )
-        # Add columns for each manager
-        for mgr_name, mgr_data in active_ld.items():
-
-            def get_mgr_status(player_name):
-                if player_name == mgr_data['c']: return "⭐"
-                elif player_name == mgr_data['vc']: return "🎖️"
-                elif player_name in mgr_data['p']: return "✅"
-                return ""
-
-            display_df[mgr_name[:10]] = display_df['Player'].apply(get_mgr_status)
-        st.dataframe(display_df.sort_values(by="Total Points", ascending=False), width='stretch', hide_index=True)
-        st.info("⭐ = Captain, 🎖️ = Vice-captain")
-    else:
-        st.info("Waiting for live match data to appear on Cricbuzz...")
+    render_performance(match_id, ld, live_df)
 
     st.divider()
     with st.expander("View Scoring System 📈"):
@@ -676,196 +301,12 @@ with t1:
 
 if is_match_started:
     with t3:
-        st.header("Matchups Comparison")
-
-        # --- MOBILE COMPACT CSS ---
-        st.markdown("""
-                <style>
-                    /* Force columns to stay side-by-side even on mobile */
-                    [data-testid="column"] {
-                        width: calc(50% - 0.5rem) !important;
-                        flex: 1 1 calc(50% - 0.5rem) !important;
-                        min-width: calc(50% - 0.5rem) !important;
-                    }
-                    /* Styling for common and unique players */
-                    .common-p { color: #00d4ff; font-weight: bold; font-size: 13px; margin-bottom: 2px; display: block; }
-                    .unique-p { color: #ffcc00; font-weight: bold; font-size: 13px; margin-bottom: 2px; display: block; }
-                    /* Header for manager name */
-                    .mgr-head { 
-                        font-size: 15px; 
-                        border-bottom: 1px solid #444; 
-                        margin-bottom: 5px; 
-                        font-weight: bold; 
-                        text-transform: uppercase;
-                    }
-                    /* Tighten spacing for st.write elements */
-                    .stMarkdown div p { margin-bottom: 2px !important; font-size: 13px !important; }
-                </style>
-            """, unsafe_allow_html=True)
-
-        ld = db.load_league_data(match_id)
-        # Only show managers who have created a team
-        mgrs = [m for m, data in ld.items() if data['c'] != "-"]
-
-        if len(mgrs) >= 2:
-            col_sel1, col_sel2 = st.columns(2)
-            # Find the index of the logged-in user in the active list
-            current_user = st.session_state.get('username')
-            default_index_m1 = 0
-            if current_user in mgrs:
-                default_index_m1 = mgrs.index(current_user)
-
-            # Set Manager 1 to the current user, and Manager 2 to the next person in the list
-            m1 = col_sel1.selectbox("Manager 1", mgrs, index=default_index_m1)
-
-            # Logic for Manager 2 default (ensure it's not the same as Manager 1)
-            default_index_m2 = 1 if default_index_m1 == 0 else 0
-            m2 = col_sel2.selectbox("Manager 2", mgrs, index=default_index_m2)
-
-            # Get Live Points Map
-            live_df = st.session_state.get('live_df', pd.DataFrame())
-            p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
-
-
-            # Helper to calculate total match score
-            def calc_score(user):
-                pks, c, vc = ld[user]['p'], ld[user]['c'], ld[user]['vc']
-                score = 0
-                for p in pks:
-                    pts = p_map.get(p, 0)
-                    if p == c:
-                        score += pts * 2
-                    elif p == vc:
-                        score += pts * 1.5
-                    else:
-                        score += pts
-                    if (p in opener_set) and (match_id in round3_matches):
-                        score -= 50
-
-                return int(score)
-
-
-            opener_set = set(live_df[live_df['Opener'] == True]['Player']) if not live_df.empty else set()
-            score1, score2 = calc_score(m1), calc_score(m2)
-            diff = abs(score1 - score2)
-
-            # Compact Difference Banner
-            st.info(f"🏆 {'Tie' if score1 == score2 else f'{(m1 if score1 > score2 else m2)} leads by {diff} pts'}")
-
-
-            # Identify Common/Unique non-C/VC players
-            s1, c1, vc1 = ld[m1]['p'], ld[m1]['c'], ld[m1]['vc']
-            s2, c2, vc2 = ld[m2]['p'], ld[m2]['c'], ld[m2]['vc']
-
-            cA, cB = st.columns(2)
-            # Comparison loop
-            for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
-                with col:
-                    st.markdown(f"<div class='mgr-head'>{manager}</div>", unsafe_allow_html=True)
-                    c_pts = int(p_map.get(c, 0) * 2)
-                    vc_pts = int(p_map.get(vc, 0) * 1.5)
-                    if match_id in round3_matches:
-                        if c in opener_set: c_pts -= 50
-                        if vc in opener_set: vc_pts -= 50
-                    st.write(f"⭐ **C:** {c} ({c_pts})")
-                    st.write(f"🎖️ **VC:** {vc} ({vc_pts})")
-
-                    # Display remaining players
-                    for p in sorted(list(pks - {c, vc})):
-                        pts = int(p_map.get(p, 0))
-                        if (p in opener_set) and (match_id in round3_matches): pts -= 50
-                        cls = "common-p" if p in other_pks else "unique-p"
-                        symbol = "●" if p in other_pks else "○"
-                        # Use div with display:block (via CSS) to ensure vertical stacking
-                        st.markdown(f"<div class='{cls}'>{symbol} {p}: {pts}</div>", unsafe_allow_html=True)
-        else:
-            st.info("Need at least 2 users to compare matchups.")
+        render_matchups(match_id, live_df)
 
     # Only allow admin edits if the match has started
     if is_admin:
         with t_admin:
-            st.header("Admin Override: Manual Team Edit")
-            st.info(
-                "As Admin, you can edit any manager's team. Rules (Overseas/Role) are bypassed, but you must pick exactly 11 players.")
-
-            # 1. Select which manager to edit
-            all_managers = list(db.load_league_data(match_id).keys())
-            target_user = st.selectbox("Select Manager to Edit", all_managers)
-
-            # 2. Load the current team for the selected manager
-            ld = db.load_league_data(match_id)
-            target_data = ld.get(target_user, {"p": set(), "c": "-", "vc": "-"})
-
-            # --- Compact Selection Grid (Reuse your T2 style) ---
-            sq = utils.load_squads()
-            lineups = st.session_state.get("lineups", {})
-
-            t1_p_admin = sq[sq['Team'] == match_info['Team 1']]
-            t2_p_admin = sq[sq['Team'] == match_info['Team 2']]
-
-            # Apply the sort here too
-            t1_p = utils.sort_squad(t1_p_admin.copy(), lineups)
-            t2_p = utils.sort_squad(t2_p_admin.copy(), lineups)
-
-            admin_selected = []
-            colL, colR = st.columns(2)
-
-            for col, team_df, team_name in [(colL, t1_p, match_info['Team 1']), (colR, t2_p, match_info['Team 2'])]:
-                with col:
-                    st.subheader(team_name[:3].upper())
-                    for _, row in team_df.iterrows():
-                        p_n = row['Player Name']
-                        # Admin doesn't need icons, just names and status if available
-                        lineups = st.session_state.get("lineups", {})
-                        dot = lineups.get(p_n, "")
-                        label = f"{p_n} {'✈️' if row['Category'] == 'Overseas' else ''}{dot}"
-
-                        if st.checkbox(label, value=(p_n in target_data['p']), key=f"admin_{target_user}_{p_n}"):
-                            admin_selected.append(p_n)
-
-            st.divider()
-
-            # 3. Captain/VC for the edited user
-            c_col, vc_col = st.columns(2)
-            with c_col:
-                new_c = st.selectbox("Set Captain", ["-"] + admin_selected,
-                                     index=admin_selected.index(target_data['c']) + 1 if target_data[
-                                                                                             'c'] in admin_selected else 0,
-                                     key="admin_c")
-            with vc_col:
-                new_vc = st.selectbox("Set Vice-Captain", ["-"] + admin_selected,
-                                      index=admin_selected.index(target_data['vc']) + 1 if target_data[
-                                                                                               'vc'] in admin_selected else 0,
-                                      key="admin_vc")
-
-            # 4. Save Logic (Bypass everything except the 11-player count)
-            if st.button("🛠️ FORCE UPDATE TEAM", use_container_width=True):
-                if len(admin_selected) != 11:
-                    st.error(f"Error: Exactly 11 players required (Currently {len(admin_selected)})")
-                elif new_c == "-" or new_vc == "-":
-                    st.error("Error: Must select Captain and Vice-Captain")
-                else:
-                    try:
-                        db.save_user_team(target_user, match_id, admin_selected, new_c, new_vc)
-                        st.success(f"SUCCESS: {target_user}'s team updated by Admin!")
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Database Error: {e}")
-
-            st.divider()
-            st.subheader(f"Account Actions for {target_user}")
-
-            # New Reset Password Button
-            if st.button(f"🔄 RESET PASSWORD FOR {target_user.upper()}", use_container_width=True):
-                try:
-                    # Set the password to "0" as per our reset logic
-                    db.update_password(target_user, "0")
-                    st.success(f"Success! {target_user}'s password has been set to '0'.")
-                    st.info(
-                        "The user can now reset their password by using the 'Join League' button with their username.")
-                except Exception as e:
-                    st.error(f"Failed to reset password: {e}")
+            render_admin(match_id, match_info)
 
 else:
     # Inform users why the tab is missing if they are looking for it
