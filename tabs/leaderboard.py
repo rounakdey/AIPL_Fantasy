@@ -59,7 +59,7 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
 
     return standings
 
-def render_h2h(my_data, target_data, mult_picked_by, diff):
+def render_h2h(my_data, target_data, mult_picked_by, diff, hide_multipliers):
     mult_txt = {'P': 1, 'C': 2, 'VC': 1.5,
                 'CP': 1, 'VP': 0.5, 'CV': 0.5}
 
@@ -76,63 +76,91 @@ def render_h2h(my_data, target_data, mult_picked_by, diff):
         # Unique Players
         uniques = my_data['p'] - target_data['p']
         for p in uniques:
-            bonus_mult = mult_picked_by.get(p, 1)
+            bonus_mult = mult_picked_by.get(p, 0 if hide_multipliers else 1)
             if p == my_data['c']:
-                multiplier = round(mult_txt['C'] * bonus_mult, 2)
-                st.write(f"⭐ **{p} (+{multiplier}x)**: Your Captain, they don't have him.")
+                base = mult_txt['C']
+                label = "Your Captain, they don't have him."
+                icon = "⭐"
             elif p == my_data['vc']:
-                multiplier = round(mult_txt['VC'] * bonus_mult, 2)
-                st.write(f"🎖️ **{p} (+{multiplier}x)**: Your Vice-Captain, they don't have him.")
+                base = mult_txt['VC']
+                label = "Your Vice-Captain, they don't have him."
+                icon = "🎖️"
             else:
-                multiplier = round(mult_txt['P'] * bonus_mult, 2)
-                st.write(f"✅ **{p} (+{multiplier}x)**: You have him, they don't.")
+                base = mult_txt['P']
+                label = "You have him, they don't."
+                icon = "✅"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{p} (+{multiplier}x)**: {label}")
 
         # Captaincy Advantages
         if my_data['c'] == target_data['vc']:
-            bonus_mult = mult_picked_by.get(my_data['c'], 1)
-            multiplier = round(mult_txt['CV'] * bonus_mult, 2)
-            st.write(f"⭐ **{my_data['c']} (+{multiplier}x)**: Your Captain vs their Vice-Captain.")
+            bonus_mult = mult_picked_by.get(my_data['c'], 0 if hide_multipliers else 1)
+            base = mult_txt['CV']
+            label = "Your Captain vs their Vice-Captain."
+            icon = "⭐"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{my_data['c']} (+{multiplier}x)**: {label}")
         if (my_data['c'] in target_data['p'] and my_data['c'] != target_data['c'] and my_data['c'] !=
                 target_data['vc']):
-            bonus_mult = mult_picked_by.get(my_data['c'], 1)
-            multiplier = round(mult_txt['CP'] * bonus_mult, 2)
-            st.write(f"⭐ **{my_data['c']} (+{multiplier}x)**: Your Captain vs their Regular.")
+            bonus_mult = mult_picked_by.get(my_data['c'], 0 if hide_multipliers else 1)
+            base = mult_txt['CP']
+            label = "Your Captain vs their Regular."
+            icon = "⭐"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{my_data['c']} (+{multiplier}x)**: {label}")
         if my_data['vc'] in target_data['p'] and my_data['vc'] not in [target_data['c'],
                                                                        target_data['vc']]:
-            bonus_mult = mult_picked_by.get(my_data['vc'], 1)
-            multiplier = round(mult_txt['VP'] * bonus_mult, 2)
-            st.write(f"🎖️ **{my_data['vc']} (+{multiplier}x)**: Your Vice-Captain vs their Regular.")
+            bonus_mult = mult_picked_by.get(my_data['vc'], 0 if hide_multipliers else 1)
+            base = mult_txt['VP']
+            label = "Your Vice-Captain vs their Regular."
+            icon = "🎖️"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{my_data['vc']} (+{multiplier}x)**: {label}")
 
     with col_oppose:
         st.error("🚫 PLAYERS TO OPPOSE")
         # Their Unique Players
         their_uniques = target_data['p'] - my_data['p']
         for p in their_uniques:
-            bonus_mult = mult_picked_by.get(p, 1)
+            bonus_mult = mult_picked_by.get(p, 0 if hide_multipliers else 1)
             if p == target_data['c']:
-                multiplier = round(mult_txt['C'] * bonus_mult, 2)
-                st.write(f"💀 **{p} (-{multiplier}x)**: Their Captain, you don't have him.")
+                base = mult_txt['C']
+                label = "Their Captain, you don't have him."
+                icon = "💀"
             elif p == target_data['vc']:
-                multiplier = round(mult_txt['VC'] * bonus_mult, 2)
-                st.write(f"⚠️ **{p} (-{multiplier}x)**: Their Vice-Captain, you don't have him.")
+                base = mult_txt['VC']
+                label = "Their Vice-Captain, you don't have him."
+                icon = "⚠️"
             else:
-                multiplier = round(mult_txt['P'] * bonus_mult, 2)
-                st.write(f"❌ **{p} (-{multiplier}x)**: They have him, you don't.")
+                base = mult_txt['P']
+                label = "They have him, you don't."
+                icon = "❌"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{p} (+{multiplier}x)**: {label}")
 
         # Their Captaincy Advantages
         if target_data['c'] == my_data['vc']:
-            bonus_mult = mult_picked_by.get(my_data['c'], 1)
-            multiplier = round(mult_txt['CV'] * bonus_mult, 2)
-            st.write(f"💀 **{target_data['c']} (-{multiplier}x)**: Their Captain vs your Vice-Captain.")
+            bonus_mult = mult_picked_by.get(target_data['c'], 0 if hide_multipliers else 1)
+            base = mult_txt['CV']
+            label = "Their Captain vs your Vice-Captain."
+            icon = "💀"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{target_data['c']} (+{multiplier}x)**: {label}")
         if (target_data['c'] in my_data['p'] and target_data['c'] != my_data['c'] and target_data[
             'c'] != my_data['vc']):
-            bonus_mult = mult_picked_by.get(my_data['c'], 1)
-            multiplier = round(mult_txt['CP'] * bonus_mult, 2)
-            st.write(f"💀 **{target_data['c']} (-{multiplier}x)**: Their Captain vs your Regular.")
+            bonus_mult = mult_picked_by.get(target_data['c'], 0 if hide_multipliers else 1)
+            base = mult_txt['CP']
+            label = "Their Captain vs your Regular."
+            icon = "💀"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{target_data['c']} (+{multiplier}x)**: {label}")
         if target_data['vc'] in my_data['p'] and target_data['vc'] not in [my_data['c'], my_data['vc']]:
-            bonus_mult = mult_picked_by.get(my_data['vc'], 1)
-            multiplier = round(mult_txt['VP'] * bonus_mult, 2)
-            st.write(f"⚠️ **{target_data['vc']} (-{multiplier}x)**: Their Vice-Captain vs your Regular.")
+            bonus_mult = mult_picked_by.get(target_data['vc'], 0 if hide_multipliers else 1)
+            base = mult_txt['VP']
+            label = "Their Vice-Captain vs your Regular."
+            icon = "⚠️"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.write(f"{icon} **{target_data['vc']} (+{multiplier}x)**: {label}")
 
 # --- Path to H2H/#1 analysis ---
 def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
@@ -152,8 +180,10 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
     if not live_df.empty and standings:
         if match_id in rounds['round5']:
             mult_picked_by = dict(zip(live_df['Player'], 10 / live_df['Picked By'].replace(0, 10)))
+            hide_multipliers = True
         else:
             mult_picked_by = {}
+            hide_multipliers = False
         user_in_standings = any(s['Manager'] == curr_user for s in standings)
         if user_in_standings:
             if opponent is not None:
@@ -182,7 +212,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                     target_data = ld[opponent]
                     my_data = ld[curr_user]
 
-                    render_h2h(my_data, target_data, mult_picked_by, h2h_diff)
+                    render_h2h(my_data, target_data, mult_picked_by, h2h_diff, hide_multipliers)
             else:
                 st.info(f"🏝️ You have no opponents for this match.")
 
@@ -195,7 +225,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                 if standings[0]['Manager'] == curr_user:
                     target = standings[1]
                     gap = target['Score'] - next(s['Score'] for s in standings if s['Manager'] == curr_user)
-                    diff = gap
+                    diff = abs(gap)
                     st.write(
                         f"🏆 **You are currently leading** with a {abs(gap)} pts lead over **{target['Manager']}**!"
                         f" To stay ahead, here is the breakdown:")
@@ -208,7 +238,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                 target_data = ld[target['Manager']]
                 my_data = ld[curr_user]
 
-                render_h2h(my_data, target_data, mult_picked_by, diff)
+                render_h2h(my_data, target_data, mult_picked_by, diff, hide_multipliers)
     else:
         if opponent is not None:
             st.info(f"⚔️ **{opponent}** is your opponent for this match. Make sure to build a team to beat them!")
