@@ -66,11 +66,20 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, hide_multipliers):
     col_image, col_root, col_oppose = st.columns([2, 4, 4])
 
     with col_image:
-        if diff < -200: st.image("images/impossible.gif", width='stretch')
-        elif diff < -50: st.image("images/behind.gif", width='stretch')
-        elif diff > 200: st.image("images/way_ahead.gif", width='stretch')
-        elif diff > 50: st.image("images/ahead.gif", width='stretch')
-        else: st.image("images/competitive.gif", width='stretch')
+        if diff < -500: st.image("images/impossible1.gif", width='stretch')
+        elif diff < -400: st.image("images/impossible2.gif", width='stretch')
+        elif diff < -300: st.image("images/impossible3.gif", width='stretch')
+        elif diff < -200: st.image("images/behind1.gif", width='stretch')
+        elif diff < -100: st.image("images/behind2.gif", width='stretch')
+        elif diff < -50: st.image("images/behind3.gif", width='stretch')
+        elif diff < -25: st.image("images/close_behind1.gif", width='stretch')
+        elif diff > 400: st.image("images/way_ahead1.gif", width='stretch')
+        elif diff > 300: st.image("images/way_ahead2.gif", width='stretch')
+        elif diff > 200: st.image("images/ahead1.gif", width='stretch')
+        elif diff > 100: st.image("images/ahead2.gif", width='stretch')
+        elif diff > 50: st.image("images/close_ahead1.gif", width='stretch')
+        elif diff > 25: st.image("images/close_ahead2.gif", width='stretch')
+        else: st.image("images/competitive1.gif", width='stretch')
     with col_root:
         st.success("📣 PLAYERS TO ROOT FOR")
         # Unique Players
