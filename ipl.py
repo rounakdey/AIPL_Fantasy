@@ -258,6 +258,8 @@ with t1:
         header_round_text = "Round 4 (Bowler Bonus):"
     elif match_id in rounds['round5']:
         header_round_text = "Round 5 (Unique Player Bonus):"
+    elif match_id in rounds['round6']:
+        header_round_text = "Round 6 (Low-scoring Player Bonus):"
     else:
         header_round_text = "Rules TBD:"
 
@@ -280,10 +282,14 @@ with t1:
 
     live_df = st.session_state.get('live_df', pd.DataFrame())
     ld = db.load_league_data(match_id)
-
     # Add Pick counts and Scale scores if round 5
     if match_id in rounds['round5']:
-        if not live_df.empty: live_df = utils.prepare_pick_counts(match_id, ld, live_df)
+        if not live_df.empty: live_df = utils.prepare_pick_counts(ld, live_df)
+    # Add Rank and Played columns if round 6
+    if match_id in rounds['round6']:
+        if not live_df.empty:
+            live_df = utils.prepare_ranks(match_id, ld, live_df)
+            st.session_state.live_df = live_df
 
     # --- Leaderboard ---
     if ld:
@@ -318,12 +324,15 @@ with t1:
             {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"},
             {"Category": "Round 3 Specific", "Action": "Per Opener", "Points": "-50"},
             {"Category": "Round 4 Specific", "Action": "Wicket / Hauls (3/5/7)", "Points": "+30 / +50 / +100 / +200"},
-            {"Category": "Round 5 Specific", "Action": "Selection Rate Multiplier", "Points": "(10 / Picked by) x Total Points"},
+            {"Category": "Round 5 Specific", "Action": "Selection Rate Multiplier",
+             "Points": "(10 / Picked by) x Total Points"},
+            {"Category": "Round 6 Specific", "Action": "Low-scoring Player Bonus",
+             "Points": "Sum of Player Ranks"},
         ]))
 
 if is_match_started:
     with t3:
-        render_matchups(match_id, live_df)
+        render_matchups(match_id)
 
     # Only allow admin edits if the match has started
     if is_admin:

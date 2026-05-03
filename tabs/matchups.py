@@ -4,7 +4,7 @@ import database as db
 from utils import rounds
 
 
-def render_matchups(match_id, live_df):
+def render_matchups(match_id):
     st.header("Matchups Comparison")
 
     # --- MOBILE COMPACT CSS ---

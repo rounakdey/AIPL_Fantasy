@@ -10,9 +10,11 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
     # Create a points map if live data exists, else empty dict
     if not live_df.empty:
         p_map = live_df.set_index('Player')['Total Points'].to_dict()
+        if match_id in rounds['round6']: p_rawscore_map = live_df.set_index('Player')['Scored Points'].to_dict()
         opener_set = set(live_df[live_df['Opener'] == True]['Player'])
     else:
         p_map = {}
+        if match_id in rounds['round6']: p_rawscore_map = {}
         opener_set = set()
 
     for u, info in ld.items():
@@ -40,6 +42,18 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
             # Apply Penalty: -50 per opener
             if match_id in rounds['round3']: total_score -= (opener_count * 50)
 
+            # Calculate Raw Scores for Round 6
+            if match_id in rounds['round6']:
+                total_raw_score = 0
+                for n in info['p']:
+                    p_pts = p_rawscore_map.get(n, 0)
+                    if n == info['c']:
+                        total_raw_score += p_pts * 2
+                    elif n == info['vc']:
+                        total_raw_score += p_pts * 1.5
+                    else:
+                        total_raw_score += p_pts
+
         # Privacy: Hide C/VC if match hasn't started
         ldbrd_row = {
             "Manager": u,
@@ -48,9 +62,13 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
             "Vice-Captain": info['vc'] if is_match_started else "🔒 Hidden",
         }
         if match_id in rounds['round3']: ldbrd_row["Openers"] = opener_count if is_match_started else "🔒 Hidden"
+        if match_id in rounds['round6']: ldbrd_row["Raw Score"] = int(total_raw_score) if is_match_started else "🔒 Hidden"
         standings.append(ldbrd_row)
 
-    standings = sorted(standings, key=lambda x: (-x['Score'], x['Manager']))
+    if match_id in rounds['round6']:
+        standings = sorted(standings, key=lambda x: (-x['Score'], x['Raw Score'], x['Manager']))
+    else:
+        standings = sorted(standings, key=lambda x: (-x['Score'], x['Manager']))
     # Only show the table if we have at least one active manager
     if standings:
         st.table(pd.DataFrame(standings))
@@ -59,26 +77,26 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
 
     return standings
 
-def render_h2h(my_data, target_data, mult_picked_by, diff, hide_multipliers):
+def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_multipliers):
     mult_txt = {'P': 1, 'C': 2, 'VC': 1.5,
                 'CP': 1, 'VP': 0.5, 'CV': 0.5}
 
     col_image, col_root, col_oppose = st.columns([2, 4, 4])
 
     with col_image:
-        if diff < -500: st.image("images/impossible1.gif", width='stretch')
-        elif diff < -400: st.image("images/impossible2.gif", width='stretch')
-        elif diff < -300: st.image("images/impossible3.gif", width='stretch')
-        elif diff < -200: st.image("images/behind1.gif", width='stretch')
-        elif diff < -100: st.image("images/behind2.gif", width='stretch')
-        elif diff < -50: st.image("images/behind3.gif", width='stretch')
-        elif diff < -25: st.image("images/close_behind1.gif", width='stretch')
-        elif diff > 400: st.image("images/way_ahead1.gif", width='stretch')
-        elif diff > 300: st.image("images/way_ahead2.gif", width='stretch')
-        elif diff > 200: st.image("images/ahead1.gif", width='stretch')
-        elif diff > 100: st.image("images/ahead2.gif", width='stretch')
-        elif diff > 50: st.image("images/close_ahead1.gif", width='stretch')
-        elif diff > 25: st.image("images/close_ahead2.gif", width='stretch')
+        if diff < diff_breaks['impossible1']: st.image("images/impossible1.gif", width='stretch')
+        elif diff < diff_breaks['impossible2']: st.image("images/impossible2.gif", width='stretch')
+        elif diff < diff_breaks['impossible3']: st.image("images/impossible3.gif", width='stretch')
+        elif diff < diff_breaks['behind1']: st.image("images/behind1.gif", width='stretch')
+        elif diff < diff_breaks['behind2']: st.image("images/behind2.gif", width='stretch')
+        elif diff < diff_breaks['behind3']: st.image("images/behind3.gif", width='stretch')
+        elif diff < diff_breaks['close_behind1']: st.image("images/close_behind1.gif", width='stretch')
+        elif diff > diff_breaks['way_ahead1']: st.image("images/way_ahead1.gif", width='stretch')
+        elif diff > diff_breaks['way_ahead2']: st.image("images/way_ahead2.gif", width='stretch')
+        elif diff > diff_breaks['ahead1']: st.image("images/ahead1.gif", width='stretch')
+        elif diff > diff_breaks['ahead2']: st.image("images/ahead2.gif", width='stretch')
+        elif diff > diff_breaks['close_ahead1']: st.image("images/close_ahead1.gif", width='stretch')
+        elif diff > diff_breaks['close_ahead2']: st.image("images/close_ahead2.gif", width='stretch')
         else: st.image("images/competitive1.gif", width='stretch')
     with col_root:
         st.success("📣 PLAYERS TO ROOT FOR")
@@ -193,6 +211,33 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
         else:
             mult_picked_by = {}
             hide_multipliers = False
+
+        # Set up specific difference breaks for showing the GIFs
+        if match_id in rounds['round5']:
+            diff_breaks = {
+                'impossible1': -500, 'impossible2': -400, 'impossible3': -300,
+                'behind1': -200, 'behind2': -100, 'behind3': -50, 'close_behind1': -25,
+                'close_ahead2': 25, 'close_ahead1': 50,
+                'ahead2': 100, 'ahead1': 200,
+                'way_ahead2': 300, 'way_ahead1': 400
+            }
+        elif match_id in rounds['round6']:
+            diff_breaks = {
+                'impossible1': -20, 'impossible2': -15, 'impossible3': -10,
+                'behind1': -7, 'behind2': -5, 'behind3': -3, 'close_behind1': -2,
+                'close_ahead2': 2, 'close_ahead1': 3,
+                'ahead2': 5, 'ahead1': 7,
+                'way_ahead2': 10, 'way_ahead1': 15
+            }
+        else:
+            diff_breaks = {
+                'impossible1': -250, 'impossible2': -200, 'impossible3': -150,
+                'behind1': -100, 'behind2': -75, 'behind3': -50, 'close_behind1': -25,
+                'close_ahead2': 25, 'close_ahead1': 50,
+                'ahead2': 75, 'ahead1': 100,
+                'way_ahead2': 150, 'way_ahead1': 200
+        }
+
         user_in_standings = any(s['Manager'] == curr_user for s in standings)
         if user_in_standings:
             if opponent is not None:
@@ -221,7 +266,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                     target_data = ld[opponent]
                     my_data = ld[curr_user]
 
-                    render_h2h(my_data, target_data, mult_picked_by, h2h_diff, hide_multipliers)
+                    render_h2h(my_data, target_data, mult_picked_by, h2h_diff, diff_breaks, hide_multipliers)
             else:
                 st.info(f"🏝️ You have no opponents for this match.")
 
@@ -247,7 +292,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                 target_data = ld[target['Manager']]
                 my_data = ld[curr_user]
 
-                render_h2h(my_data, target_data, mult_picked_by, diff, hide_multipliers)
+                render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_multipliers)
     else:
         if opponent is not None:
             st.info(f"⚔️ **{opponent}** is your opponent for this match. Make sure to build a team to beat them!")
