@@ -260,6 +260,8 @@ with t1:
         header_round_text = "Round 5 (Unique Player Bonus):"
     elif match_id in rounds['round6']:
         header_round_text = "Round 6 (Low-scoring Player Bonus):"
+    elif match_id in rounds['round7']:
+        header_round_text = "Round 7 (Ban Round):"
     else:
         header_round_text = "Rules TBD:"
 
@@ -328,6 +330,8 @@ with t1:
              "Points": "(10 / Picked by) x Total Points"},
             {"Category": "Round 6 Specific", "Action": "Low-scoring Player Bonus",
              "Points": "Sum of Player Ranks"},
+            {"Category": "Round 7 Specific", "Action": "Ban Round",
+             "Points": "Banned Players Earn No Points"},
         ]))
 
 if is_match_started:

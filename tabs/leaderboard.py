@@ -7,6 +7,18 @@ from utils import rounds
 # --- Leaderboard ---
 def render_leaderboard(match_id, is_match_started, ld, live_df):
     standings = []
+    # 1. Create a Ban Registry for Round 7
+    # Map: { "Player Name": [List of Managers who banned them] }
+    ban_registry = {}
+    if match_id in rounds.get('round7', []):
+        for m_name, m_info in ld.items():
+            if m_info['c'] != "-":  # Only count active managers
+                b_player = m_info.get('b', "-")
+                if b_player != "-":
+                    if b_player not in ban_registry:
+                        ban_registry[b_player] = []
+                    ban_registry[b_player].append(m_name)
+
     # Create a points map if live data exists, else empty dict
     if not live_df.empty:
         p_map = live_df.set_index('Player')['Total Points'].to_dict()
@@ -29,6 +41,16 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
         if p_map:
             for n in info['p']:
                 p_pts = p_map.get(n, 0)
+                # --- ROUND 7: Exclusive Ban Logic ---
+                if match_id in rounds.get('round7', []):
+                    if n in ban_registry:
+                        banners = ban_registry[n]
+                        # Penalty if:
+                        # A) More than one person banned this player (Global Ban)
+                        # B) Someone else banned this player and you didn't (Hostile Ban)
+                        if len(banners) > 1 or u not in banners:
+                            p_pts = 0
+
                 if n == info['c']:
                     total_score += p_pts * 2
                 elif n == info['vc']:
@@ -63,6 +85,7 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
         }
         if match_id in rounds['round3']: ldbrd_row["Openers"] = opener_count if is_match_started else "🔒 Hidden"
         if match_id in rounds['round6']: ldbrd_row["Raw Score"] = int(total_raw_score) if is_match_started else "🔒 Hidden"
+        if match_id in rounds['round7']: ldbrd_row["Banned"] = info['b'] if is_match_started else "🔒 Hidden"
         standings.append(ldbrd_row)
 
     if match_id in rounds['round6']:
@@ -238,8 +261,48 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                 'way_ahead2': 150, 'way_ahead1': 200
         }
 
+        # --- ROUND 7: PRE-PROCESSING BANS ---
+        # 1. Create the global Ban Registry
+        ban_registry = {}
+        if match_id in rounds.get('round7', []):
+            for m_name, m_info in ld.items():
+                if m_info['c'] != "-":
+                    b_p = m_info.get('b', "-")
+                    if b_p != "-":
+                        if b_p not in ban_registry:
+                            ban_registry[b_p] = []
+                        ban_registry[b_p].append(m_name)
+
+        # 2. Helper function to sanitize a manager's data
+        def get_sanitized_data(mgr_name):
+            # Create a deep copy to avoid mutating the original league data
+            base = ld[mgr_name].copy()
+
+            if match_id in rounds.get('round7', []):
+                active_players = set()
+                for p in base['p']:
+                    is_banned = False
+                    if p in ban_registry:
+                        banners = ban_registry[p]
+                        # "Exclusive Ban" Rule:
+                        # Banned if: >1 person banned him OR (1 person banned him and it wasn't you)
+                        if len(banners) > 1 or mgr_name not in banners:
+                            is_banned = True
+
+                    if not is_banned:
+                        active_players.add(p)
+
+                # Update player set
+                base['p'] = active_players
+                # Nullify C/VC if they didn't survive the ban
+                if base['c'] not in active_players: base['c'] = "-"
+                if base['vc'] not in active_players: base['vc'] = "-"
+
+            return base
+
         user_in_standings = any(s['Manager'] == curr_user for s in standings)
         if user_in_standings:
+            my_data = get_sanitized_data(curr_user)
             if opponent is not None:
                 # --- H2H Matchup ---
                 st.subheader(f"⚔️ H2H Strategy: Path to beating {opponent}")
@@ -263,8 +326,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                         st.write(f"⚖️ You and **{opponent}** are currently tied!")
 
                     # 3. Structural Comparison (Mirroring your Path to #1 logic)
-                    target_data = ld[opponent]
-                    my_data = ld[curr_user]
+                    target_data = get_sanitized_data(opponent)
 
                     render_h2h(my_data, target_data, mult_picked_by, h2h_diff, diff_breaks, hide_multipliers)
             else:
@@ -289,8 +351,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                     diff = -gap
                     st.write(f"📈 **Chasing {target['Manager']}** ({gap} pts gap). Here is your path to the top:")
 
-                target_data = ld[target['Manager']]
-                my_data = ld[curr_user]
+                target_data = get_sanitized_data(target['Manager'])
 
                 render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_multipliers)
     else:
@@ -309,17 +370,57 @@ def render_performance(match_id, ld, live_df):
         # 1. Identify active managers and count player picks
         active_ld = {m: data for m, data in ld.items() if data['c'] != "-"}
 
+        # --- ROUND 7: Create Ban Registry ---
+        # Map: { "Player Name": [List of Managers who banned them] }
+        ban_registry = {}
+        if match_id in rounds['round7']:
+            for m, data in active_ld.items():
+                b_player = data.get('b', "-")
+                if b_player != "-":
+                    if b_player not in ban_registry:
+                        ban_registry[b_player] = []
+                    ban_registry[b_player].append(m)
+
         # Add columns for each manager
         for mgr_name, mgr_data in active_ld.items():
 
             def get_mgr_status(player_name):
-                if player_name == mgr_data['c']: return "⭐"
-                elif player_name == mgr_data['vc']: return "🎖️"
-                elif player_name in mgr_data['p']: return "✅"
-                return ""
+                # Standard status indicators
+                status = ""
+                if player_name == mgr_data['c']:
+                    status = "⭐"
+                elif player_name == mgr_data['vc']:
+                    status = "🎖️"
+                elif player_name in mgr_data['p']:
+                    status = "✅"
+
+                # Exit early if player is not in manager's team
+                if status == "": return ""
+
+                # Apply Round 7 "Exclusive Ban" Rules
+                if match_id in rounds.get('round7', []):
+                    if player_name in ban_registry:
+                        banners = ban_registry[player_name]
+
+                        # Rule 1: If 2 or more managers ban the same player,
+                        # they are banned for EVERYONE (including the banners).
+                        if len(banners) > 1:
+                            return "❌"
+
+                        # Rule 2: If only 1 manager bans the player,
+                        # they are safe for that manager but banned for everyone else.
+                        elif len(banners) == 1:
+                            if mgr_name not in banners:
+                                return "❌"
+
+                return status
 
             display_df[mgr_name[:10]] = display_df['Player'].apply(get_mgr_status)
         st.dataframe(display_df.sort_values(by="Total Points", ascending=False), width='stretch', hide_index=True)
-        st.info("⭐ = Captain, 🎖️ = Vice-captain")
+        # Dynamic Legend
+        legend = "⭐ = Captain, 🎖️ = Vice-captain"
+        if match_id in rounds.get('round7', []):
+            legend += ", ❌ = Banned"
+        st.info(legend)
     else:
         st.info("Waiting for live match data to appear on Cricbuzz...")

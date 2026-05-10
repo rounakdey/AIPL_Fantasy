@@ -1,6 +1,7 @@
 import streamlit as st
 import database as db
 import utils
+from utils import rounds
 
 
 def render_selection(match_id, match_info, lock_master_flag, is_match_started):
@@ -11,12 +12,14 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
 
         # Load the user's saved team to show them what they picked
         ld = db.load_league_data(match_id)
-        my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-"})
+        my_data = ld.get(st.session_state.username, {"p": set(), "c": "-", "vc": "-", "b": "-"})
 
         if my_data['c'] != "-":
             st.subheader("Your Locked XI")
             st.write(f"⭐ **Captain:** {my_data['c']}")
             st.write(f"🎖️ **Vice-Captain:** {my_data['vc']}")
+            if my_data['b'] != "-":
+                st.write(f"🚫️ **Banned:** {my_data['b']}")
 
             # Show the rest of the players in a simple list or read-only columns
             p_list = sorted(list(my_data['p'] - {my_data['c'], my_data['vc']}))
@@ -127,7 +130,11 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
         c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
 
         if valid_count and valid_overseas and valid_teams and valid_roles:
-            c1, c2 = st.columns(2)
+            if match_id in rounds['round7']:
+                c1, c2, c3 = st.columns(3)
+            else:
+                c1, c2 = st.columns(2)
+                c3 = None
             with c1:
                 cap = st.selectbox("Select Captain (2x)", selected_players,
                                    index=selected_players.index(my_data['c']) if my_data[
@@ -138,8 +145,18 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
                 vc = st.selectbox("Select Vice-Captain (1.5x)", vc_options,
                                   index=vc_options.index(my_data['vc']) if my_data['vc'] in vc_options else 0)
 
+            # --- ROUND 7: BANNED PLAYER SELECTION ---
+            banned_player = "-"
+            if c3:
+                with c3:
+                    # Pool for banned players: All players from both teams
+                    all_players = t1_p['Player Name'].tolist() + t2_p['Player Name'].tolist()
+                    banned_player = st.selectbox("🚫 Ban a Player", ["-"] + all_players,
+                                                 index=(all_players.index(my_data['b']) + 1) if my_data.get(
+                                                     'b') in all_players else 0,
+                                                 help="This player will be banned for all other managers.")
             if st.button("💾 Save My Team"):
-                db.save_user_team(st.session_state.username, match_id, selected_players, cap, vc)
+                db.save_user_team(st.session_state.username, match_id, selected_players, cap, vc, banned_player)
                 st.success("Selection Locked!")
         else:
             errors = []

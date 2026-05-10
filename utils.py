@@ -14,6 +14,7 @@ rounds = {
     'round4': [f"match_{i}" for i in range(29, 38)],
     'round5': [f"match_{i}" for i in range(38, 47)],
     'round6': [f"match_{i}" for i in range(47, 56)],
+    'round7': [f"match_{i}" for i in range(56, 65)],
 }
 
 def get_three_part_name_map(player_list):

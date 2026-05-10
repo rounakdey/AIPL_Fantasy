@@ -18,6 +18,7 @@ CREATE TABLE match_teams (
     match_id TEXT NOT NULL,
     captain TEXT DEFAULT '-',
     vice_captain TEXT DEFAULT '-',
+    banned TEXT DEFAULT '-',
     PRIMARY KEY (username, match_id)
 );
 

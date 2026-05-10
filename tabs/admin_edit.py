@@ -2,6 +2,7 @@ import streamlit as st
 import database as db
 import utils
 import time
+from utils import rounds
 
 def render_admin(match_id, match_info):
     st.header("Admin Override: Manual Team Edit")
@@ -46,7 +47,11 @@ def render_admin(match_id, match_info):
     st.divider()
 
     # 3. Captain/VC for the edited user
-    c_col, vc_col = st.columns(2)
+    if match_id in rounds['round7']:
+        c_col, vc_col, b_col = st.columns(3)
+    else:
+        c_col, vc_col = st.columns(2)
+        b_col = None
     with c_col:
         new_c = st.selectbox("Set Captain", ["-"] + admin_selected,
                              index=admin_selected.index(target_data['c']) + 1 if target_data[
@@ -57,6 +62,16 @@ def render_admin(match_id, match_info):
                               index=admin_selected.index(target_data['vc']) + 1 if target_data[
                                                                                        'vc'] in admin_selected else 0,
                               key="admin_vc")
+    # --- ROUND 7: BANNED PLAYER SELECTION ---
+    new_banned = "-"
+    if b_col:
+        with b_col:
+            # Pool for banned players: All players from both teams
+            all_players_admin = t1_p['Player Name'].tolist() + t2_p['Player Name'].tolist()
+            new_banned = st.selectbox("🚫 Set Banned Player", ["-"] + all_players_admin,
+                                         index=(all_players_admin.index(target_data['b']) + 1) if target_data.get(
+                                             'b') in all_players_admin else 0,
+                                         key="admin_banned")
 
     # 4. Save Logic (Bypass everything except the 11-player count)
     if st.button("🛠️ FORCE UPDATE TEAM", use_container_width=True):
@@ -66,7 +81,7 @@ def render_admin(match_id, match_info):
             st.error("Error: Must select Captain and Vice-Captain")
         else:
             try:
-                db.save_user_team(target_user, match_id, admin_selected, new_c, new_vc)
+                db.save_user_team(target_user, match_id, admin_selected, new_c, new_vc, new_banned)
                 st.success(f"SUCCESS: {target_user}'s team updated by Admin!")
                 time.sleep(1)
                 st.rerun()

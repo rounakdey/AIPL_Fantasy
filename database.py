@@ -36,7 +36,7 @@ def join_league_all_matches(username, hashed_pw):
 
     # 2. Prepare 70 match entries for this user
     batch_data = [
-        {"username": username, "match_id": f"match_{i}", "captain": "-", "vice_captain": "-"}
+        {"username": username, "match_id": f"match_{i}", "captain": "-", "vice_captain": "-", "banned": "-"}
         for i in range(1, 71)
     ]
 
@@ -44,7 +44,7 @@ def join_league_all_matches(username, hashed_pw):
     return supabase.table("match_teams").upsert(batch_data).execute()
 
 
-def save_user_team(username, match_id, players, captain, vice_captain):
+def save_user_team(username, match_id, players, captain, vice_captain, banned_player="-"):
     """Saves match-specific squad and captains."""
     # Clear old selections for this specific match
     supabase.table("selections").delete().eq("username", username).eq("match_id", match_id).execute()
@@ -55,9 +55,11 @@ def save_user_team(username, match_id, players, captain, vice_captain):
         supabase.table("selections").insert(sel_data).execute()
 
     # Update Captain/VC for this specific match only in the match_teams table
+    # For round 7, add banned as well
     supabase.table("match_teams").update({
         "captain": captain,
-        "vice_captain": vice_captain
+        "vice_captain": vice_captain,
+        "banned": banned_player
     }).eq("username", username).eq("match_id", match_id).execute()
 
     st.cache_data.clear()
@@ -68,7 +70,7 @@ def load_league_data(match_id):
     """Loads all manager data (squads, C, VC) for a specific match ID."""
     try:
         # Pull match-specific info (Captains/VCs)
-        users_res = supabase.table("match_teams").select("username, captain, vice_captain").eq("match_id",
+        users_res = supabase.table("match_teams").select("username, captain, vice_captain, banned").eq("match_id",
                                                                                                match_id).execute()
         # Pull match-specific selections
         sels_res = supabase.table("selections").select("*").eq("match_id", match_id).execute()
@@ -84,7 +86,8 @@ def load_league_data(match_id):
                 data[u] = {
                     "p": u_p,
                     "c": row['captain'],
-                    "vc": row.get('vice_captain', '-')
+                    "vc": row.get('vice_captain', '-'),
+                    "b": row.get('banned', "-")
                 }
         return data
     except Exception:
