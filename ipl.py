@@ -204,6 +204,41 @@ if st.session_state.refresh_enabled:
     st_autorefresh(interval=60000, key="global_refresh")
     st.session_state.live_df = scraper.get_live_stats(current_url, match_id)
 
+# Get Lineups
+time_to_start = (match_info['match_dt'] - now_gmt).total_seconds() / 60
+
+if "lineups" not in st.session_state or st.session_state.get("lineup_match") != match_id:
+    if time_to_start <= 30:  # Start checking slightly early
+        st.session_state.lineups = scraper.get_lineups(match_info['URL'])
+        st.session_state.lineup_match = match_id
+    else:
+        st.session_state.lineups = {}
+
+# Load the Player Performance and Ban Registry
+live_df = st.session_state.get('live_df', pd.DataFrame())
+ld = db.load_league_data(match_id)
+# Add Pick counts and Scale scores if round 5
+if match_id in rounds['round5']:
+    if not live_df.empty: live_df = utils.prepare_pick_counts(ld, live_df)
+# Add Rank and Played columns if round 6
+if match_id in rounds['round6']:
+    if not live_df.empty:
+        live_df = utils.prepare_ranks(match_id, ld, live_df)
+        st.session_state.live_df = live_df
+ban_registry = {}
+# Create ban registry if round 7
+if match_id in rounds.get('round7', []):
+    for m_name, m_info in ld.items():
+        if m_info['c'] != "-":  # Only active managers
+            b_p = m_info.get('b', "-")
+            if b_p not in ["-", ""]:
+                if b_p not in ban_registry:
+                    ban_registry[b_p] = []
+                ban_registry[b_p].append(m_name)
+
+# Save to session state for the matchups tab
+st.session_state.ban_registry = ban_registry
+
 # --- DYNAMIC TABS ---
 is_admin = st.session_state.get('username') == "Valar Morghulis" # Set your admin username here
 # Define the base tabs
@@ -224,15 +259,6 @@ if is_match_started:
 
 with t2:
     if st.session_state.logged_in:
-        time_to_start = (match_info['match_dt'] - now_gmt).total_seconds() / 60
-
-        if "lineups" not in st.session_state or st.session_state.get("lineup_match") != match_id:
-            if time_to_start <= 30:  # Start checking slightly early
-                st.session_state.lineups = scraper.get_lineups(match_info['URL'])
-                st.session_state.lineup_match = match_id
-            else:
-                st.session_state.lineups = {}
-
         render_selection(match_id, match_info, lock_master_flag, is_match_started)
     else:
         st.subheader("🏏 Ready to build your XI?")
@@ -282,20 +308,10 @@ with t1:
                                                    key="c1")
     cC.write(f"⏱️ Last Update: **{st.session_state.last_refresh}**")
 
-    live_df = st.session_state.get('live_df', pd.DataFrame())
-    ld = db.load_league_data(match_id)
-    # Add Pick counts and Scale scores if round 5
-    if match_id in rounds['round5']:
-        if not live_df.empty: live_df = utils.prepare_pick_counts(ld, live_df)
-    # Add Rank and Played columns if round 6
-    if match_id in rounds['round6']:
-        if not live_df.empty:
-            live_df = utils.prepare_ranks(match_id, ld, live_df)
-            st.session_state.live_df = live_df
 
     # --- Leaderboard ---
     if ld:
-        standings = render_leaderboard(match_id, is_match_started, ld, live_df)
+        standings = render_leaderboard(match_id, is_match_started, ld, live_df, ban_registry)
     else:
         st.info("No registered managers found in the league.")
 
@@ -305,11 +321,11 @@ with t1:
     if st.session_state.logged_in:
         curr_user = st.session_state.username
         h2h_sched = utils.load_h2h_schedule()
-        render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df)
+        render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_registry)
 
     # --- Live Player Performances ---
     st.divider()
-    render_performance(match_id, ld, live_df)
+    render_performance(match_id, ld, live_df, ban_registry)
 
     st.divider()
     with st.expander("View Scoring System 📈"):

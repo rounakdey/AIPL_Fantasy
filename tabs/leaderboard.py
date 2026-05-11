@@ -5,19 +5,8 @@ import utils
 from utils import rounds
 
 # --- Leaderboard ---
-def render_leaderboard(match_id, is_match_started, ld, live_df):
+def render_leaderboard(match_id, is_match_started, ld, live_df, ban_registry):
     standings = []
-    # 1. Create a Ban Registry for Round 7
-    # Map: { "Player Name": [List of Managers who banned them] }
-    ban_registry = {}
-    if match_id in rounds.get('round7', []):
-        for m_name, m_info in ld.items():
-            if m_info['c'] != "-":  # Only count active managers
-                b_player = m_info.get('b', "-")
-                if b_player != "-":
-                    if b_player not in ban_registry:
-                        ban_registry[b_player] = []
-                    ban_registry[b_player].append(m_name)
 
     # Create a points map if live data exists, else empty dict
     if not live_df.empty:
@@ -85,7 +74,16 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
         }
         if match_id in rounds['round3']: ldbrd_row["Openers"] = opener_count if is_match_started else "🔒 Hidden"
         if match_id in rounds['round6']: ldbrd_row["Raw Score"] = int(total_raw_score) if is_match_started else "🔒 Hidden"
-        if match_id in rounds['round7']: ldbrd_row["Banned"] = info['b'] if is_match_started else "🔒 Hidden"
+        if match_id in rounds['round7']:
+            banned_player_name = info.get('b', "-")
+            player_on_field = banned_player_name in p_map
+            if is_match_started:
+                if banned_player_name == "-":
+                    ldbrd_row["Banned"] = "-"
+                else:
+                    ldbrd_row["Banned"] = banned_player_name if player_on_field else "⏳ Yet to be Revealed"
+            else:
+                ldbrd_row["Banned"] = "🔒 Hidden"
         standings.append(ldbrd_row)
 
     if match_id in rounds['round6']:
@@ -103,6 +101,13 @@ def render_leaderboard(match_id, is_match_started, ld, live_df):
 def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_multipliers):
     mult_txt = {'P': 1, 'C': 2, 'VC': 1.5,
                 'CP': 1, 'VP': 0.5, 'CV': 0.5}
+
+    # Helper to format player names based on ban status
+    def style_p(name, banned_list):
+        if name in banned_list:
+            # Red text with a strikethrough
+            return f"<span style='color: #ff4b4b; text-decoration: line-through;'>{name}</span>"
+        return f"**{name}**"
 
     col_image, col_root, col_oppose = st.columns([2, 4, 4])
 
@@ -127,6 +132,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
         uniques = my_data['p'] - target_data['p']
         for p in uniques:
             bonus_mult = mult_picked_by.get(p, 0 if hide_multipliers else 1)
+            p_display = style_p(p, my_data['b'])
             if p == my_data['c']:
                 base = mult_txt['C']
                 label = "Your Captain, they don't have him."
@@ -140,7 +146,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
                 label = "You have him, they don't."
                 icon = "✅"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{p} (+{multiplier}x)**: {label}")
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
 
         # Captaincy Advantages
         if my_data['c'] == target_data['vc']:
@@ -149,7 +155,8 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             label = "Your Captain vs their Vice-Captain."
             icon = "⭐"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{my_data['c']} (+{multiplier}x)**: {label}")
+            p_display = style_p(my_data['c'], my_data['b'])
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
         if (my_data['c'] in target_data['p'] and my_data['c'] != target_data['c'] and my_data['c'] !=
                 target_data['vc']):
             bonus_mult = mult_picked_by.get(my_data['c'], 0 if hide_multipliers else 1)
@@ -157,7 +164,8 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             label = "Your Captain vs their Regular."
             icon = "⭐"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{my_data['c']} (+{multiplier}x)**: {label}")
+            p_display = style_p(my_data['c'], my_data['b'])
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
         if my_data['vc'] in target_data['p'] and my_data['vc'] not in [target_data['c'],
                                                                        target_data['vc']]:
             bonus_mult = mult_picked_by.get(my_data['vc'], 0 if hide_multipliers else 1)
@@ -165,7 +173,8 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             label = "Your Vice-Captain vs their Regular."
             icon = "🎖️"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{my_data['vc']} (+{multiplier}x)**: {label}")
+            p_display = style_p(my_data['vc'], my_data['b'])
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
 
     with col_oppose:
         st.error("🚫 PLAYERS TO OPPOSE")
@@ -173,6 +182,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
         their_uniques = target_data['p'] - my_data['p']
         for p in their_uniques:
             bonus_mult = mult_picked_by.get(p, 0 if hide_multipliers else 1)
+            p_display = style_p(p, target_data['b'])
             if p == target_data['c']:
                 base = mult_txt['C']
                 label = "Their Captain, you don't have him."
@@ -186,7 +196,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
                 label = "They have him, you don't."
                 icon = "❌"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{p} (+{multiplier}x)**: {label}")
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
 
         # Their Captaincy Advantages
         if target_data['c'] == my_data['vc']:
@@ -195,7 +205,8 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             label = "Their Captain vs your Vice-Captain."
             icon = "💀"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{target_data['c']} (+{multiplier}x)**: {label}")
+            p_display = style_p(target_data['c'], target_data['b'])
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
         if (target_data['c'] in my_data['p'] and target_data['c'] != my_data['c'] and target_data[
             'c'] != my_data['vc']):
             bonus_mult = mult_picked_by.get(target_data['c'], 0 if hide_multipliers else 1)
@@ -203,19 +214,21 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             label = "Their Captain vs your Regular."
             icon = "💀"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{target_data['c']} (+{multiplier}x)**: {label}")
+            p_display = style_p(target_data['c'], target_data['b'])
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
         if target_data['vc'] in my_data['p'] and target_data['vc'] not in [my_data['c'], my_data['vc']]:
             bonus_mult = mult_picked_by.get(target_data['vc'], 0 if hide_multipliers else 1)
             base = mult_txt['VP']
             label = "Their Vice-Captain vs your Regular."
             icon = "⚠️"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
-            st.write(f"{icon} **{target_data['vc']} (+{multiplier}x)**: {label}")
+            p_display = style_p(target_data['vc'], target_data['b'])
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
 
 # --- Path to H2H/#1 analysis ---
-def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
+def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_registry):
     match_num = int(match_id.split('_')[1])
-
+    p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
     # Find the row for this match and user
     h2h_row = h2h_sched[
         (h2h_sched['Match'] == match_num) &
@@ -261,42 +274,21 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
                 'way_ahead2': 150, 'way_ahead1': 200
         }
 
-        # --- ROUND 7: PRE-PROCESSING BANS ---
-        # 1. Create the global Ban Registry
-        ban_registry = {}
-        if match_id in rounds.get('round7', []):
-            for m_name, m_info in ld.items():
-                if m_info['c'] != "-":
-                    b_p = m_info.get('b', "-")
-                    if b_p != "-":
-                        if b_p not in ban_registry:
-                            ban_registry[b_p] = []
-                        ban_registry[b_p].append(m_name)
 
-        # 2. Helper function to sanitize a manager's data
+        # Helper function to sanitize a manager's data
         def get_sanitized_data(mgr_name):
-            # Create a deep copy to avoid mutating the original league data
             base = ld[mgr_name].copy()
-
+            base['b'] = []
             if match_id in rounds.get('round7', []):
-                active_players = set()
                 for p in base['p']:
                     is_banned = False
                     if p in ban_registry:
                         banners = ban_registry[p]
-                        # "Exclusive Ban" Rule:
-                        # Banned if: >1 person banned him OR (1 person banned him and it wasn't you)
                         if len(banners) > 1 or mgr_name not in banners:
-                            is_banned = True
-
-                    if not is_banned:
-                        active_players.add(p)
-
-                # Update player set
-                base['p'] = active_players
-                # Nullify C/VC if they didn't survive the ban
-                if base['c'] not in active_players: base['c'] = "-"
-                if base['vc'] not in active_players: base['vc'] = "-"
+                            if p in p_map:
+                                is_banned = True
+                    if is_banned:
+                        base['b'].append(p)
 
             return base
 
@@ -360,7 +352,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df):
         else:
             st.info("🏝️ You have no opponents for this match.")
 
-def render_performance(match_id, ld, live_df):
+def render_performance(match_id, ld, live_df, ban_registry):
     st.subheader("Live Player Performance")
     # Show the player points table only if it actually has data
     if not live_df.empty:
@@ -369,17 +361,6 @@ def render_performance(match_id, ld, live_df):
 
         # 1. Identify active managers and count player picks
         active_ld = {m: data for m, data in ld.items() if data['c'] != "-"}
-
-        # --- ROUND 7: Create Ban Registry ---
-        # Map: { "Player Name": [List of Managers who banned them] }
-        ban_registry = {}
-        if match_id in rounds['round7']:
-            for m, data in active_ld.items():
-                b_player = data.get('b', "-")
-                if b_player != "-":
-                    if b_player not in ban_registry:
-                        ban_registry[b_player] = []
-                    ban_registry[b_player].append(m)
 
         # Add columns for each manager
         for mgr_name, mgr_data in active_ld.items():

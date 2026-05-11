@@ -35,19 +35,16 @@ def render_matchups(match_id):
     # Only show managers who have created a team
     mgrs = [m for m, data in ld.items() if data['c'] != "-"]
 
-    # --- ROUND 7: Ban Registry ---
-    ban_registry = {}
-    if match_id in rounds.get('round7', []):
-        for m_name, m_info in ld.items():
-            if m_info['c'] != "-":
-                b_p = m_info.get('b', "-")
-                if b_p != "-" and b_p != "":
-                    if b_p not in ban_registry:
-                        ban_registry[b_p] = []
-                    ban_registry[b_p].append(m_name)
+    # Load the ban registry
+    ban_registry = st.session_state.get('ban_registry', {})
+
+    # Get Live Points Map
+    live_df = st.session_state.get('live_df', pd.DataFrame())
+    p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
 
     def is_player_banned(p_name, mgr_name):
         if match_id not in rounds.get('round7', []): return False
+        if p_name not in p_map: return False
         if p_name in ban_registry:
             banners = ban_registry[p_name]
             # Rule: Banned if >1 person banned him OR (1 person banned him and it wasn't you)
@@ -69,10 +66,6 @@ def render_matchups(match_id):
         # Logic for Manager 2 default (ensure it's not the same as Manager 1)
         default_index_m2 = 1 if default_index_m1 == 0 else 0
         m2 = col_sel2.selectbox("Manager 2", mgrs, index=default_index_m2)
-
-        # Get Live Points Map
-        live_df = st.session_state.get('live_df', pd.DataFrame())
-        p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
 
         # Helper to calculate total match score
         def calc_score(user):

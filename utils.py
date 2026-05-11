@@ -122,13 +122,7 @@ def prepare_pick_counts(ld, live_df):
     return live_df
 
 def prepare_ranks(match_id, ld, live_df):
-    # --- STEP 1: Get Lineups from Session State or Scraper ---
-
-    # Check if lineups exist and are for the current match_id
-    if (st.session_state.get("lineup_match") != match_id) or ("lineups" not in st.session_state):
-        st.session_state.lineups = scraper.get_lineups(match_info['URL'])
-        st.session_state.lineup_match = match_id
-
+    # --- STEP 1: Get Lineups from Session State ---
     lineups = st.session_state.lineups  # This is your status_map {Player: "🟢", etc.}
 
     # --- STEP 2: Filter for Playing XI only ---
