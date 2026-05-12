@@ -103,10 +103,18 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
                 'CP': 1, 'VP': 0.5, 'CV': 0.5}
 
     # Helper to format player names based on ban status
-    def style_p(name, banned_list):
+    def style_p(name, banned_list, unique_banned_list = set()):
         if name in banned_list:
             # Red text with a strikethrough
             return f"<span style='color: #ff4b4b; text-decoration: line-through;'>{name}</span>"
+        return f"**{name}**"
+    def style_p_unique_ban(name, color):
+        if color == "red":
+            # Red text
+            return f"<span style='color: #ff4b4b;'>{name}</span>"
+        if color == "green":
+            # Green text
+            return f"<span style='color: #228b22;'>{name}</span>"
         return f"**{name}**"
 
     col_image, col_root, col_oppose = st.columns([2, 4, 4])
@@ -144,6 +152,28 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             else:
                 base = mult_txt['P']
                 label = "You have him, they don't."
+                icon = "✅"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
+
+        # Show unique bans
+        # Get which players are banned for the opponent but not me, that I have in my team
+        # and not already represented in the uniques above
+        unique_banned = (my_data['p'] & (target_data['b'] - my_data['b'])) - uniques
+        for p in unique_banned:
+            bonus_mult = mult_picked_by.get(p, 0 if hide_multipliers else 1)
+            p_display = style_p_unique_ban(p, "green")
+            if p == my_data['c']:
+                base = mult_txt['C']
+                label = "Your Captain, banned for them."
+                icon = "⭐"
+            elif p == my_data['vc']:
+                base = mult_txt['VC']
+                label = "Your Vice-Captain, banned for them."
+                icon = "🎖️"
+            else:
+                base = mult_txt['P']
+                label = "You have him, he is banned for them."
                 icon = "✅"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
             st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
@@ -194,6 +224,28 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             else:
                 base = mult_txt['P']
                 label = "They have him, you don't."
+                icon = "❌"
+            multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
+            st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
+
+        # Show unique bans
+        # Get which players are banned for you but not the opponent, that they have in their team
+        # and not already represented in their uniques above
+        their_unique_banned = (target_data['p'] & (my_data['b'] - target_data['b'])) - their_uniques
+        for p in their_unique_banned:
+            bonus_mult = mult_picked_by.get(p, 0 if hide_multipliers else 1)
+            p_display = style_p_unique_ban(p, "red")
+            if p == target_data['c']:
+                base = mult_txt['C']
+                label = "Their Captain, banned for you."
+                icon = "💀"
+            elif p == target_data['vc']:
+                base = mult_txt['VC']
+                label = "Their Vice-Captain, banned for you."
+                icon = "⚠️"
+            else:
+                base = mult_txt['P']
+                label = "They have him, he is banned for you."
                 icon = "❌"
             multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
             st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
@@ -289,6 +341,7 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_
                                 is_banned = True
                     if is_banned:
                         base['b'].append(p)
+            base['b'] = set(base['b'])
 
             return base
 

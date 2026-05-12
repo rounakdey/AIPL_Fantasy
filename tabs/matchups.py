@@ -98,7 +98,7 @@ def render_matchups(match_id):
 
         cA, cB = st.columns(2)
         # Comparison loop
-        for manager, col, pks, c, vc, other_pks in [(m1, cA, s1, c1, vc1, s2), (m2, cB, s2, c2, vc2, s1)]:
+        for manager, col, pks, c, vc, other_pks, other_manager in [(m1, cA, s1, c1, vc1, s2, m2), (m2, cB, s2, c2, vc2, s1, m1)]:
             with col:
                 st.markdown(f"<div class='mgr-head'>{manager}</div>", unsafe_allow_html=True)
                 # Check C/VC Ban Status
@@ -124,14 +124,21 @@ def render_matchups(match_id):
                 # Display remaining players
                 for p in sorted(list(pks - {c, vc})):
                     p_dead = is_player_banned(p, manager)
+                    p_dead_other = is_player_banned(p, other_manager)
                     pts = int(p_map.get(p, 0)) if not p_dead else 0
                     if not p_dead and (p in opener_set) and (match_id in rounds.get('round3', [])): pts -= 50
 
                     if p_dead:
                         cls, symbol = "banned-p", "✕"
                     else:
-                        cls = "common-p" if p in other_pks else "unique-p"
-                        symbol = "●" if p in other_pks else "○"
+                        if p in other_pks:
+                            if p_dead_other:
+                                cls, symbol = "unique-p", "○"
+                            else:
+                                cls, symbol = "common-p", "●"
+                        else:
+                            cls = "unique-p"
+                            symbol = "○"
 
                     st.markdown(f"<div class='{cls}'>{symbol} {p}: {pts}</div>", unsafe_allow_html=True)
     else:
