@@ -20,7 +20,7 @@ from tabs.leaderboard import render_leaderboard, render_strategy, render_perform
 cookie_manager = stx.CookieManager()
 
 # Initialize a master key flag for locking the team after match has started
-lock_master_flag = True # Set True before deploying
+lock_master_flag = False # Set True before deploying
 
 # Initialize a flag to track manual logouts
 if 'manual_logout' not in st.session_state:
