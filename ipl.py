@@ -225,6 +225,15 @@ if match_id in rounds['round6']:
     if not live_df.empty:
         live_df = utils.prepare_ranks(match_id, ld, live_df)
         st.session_state.live_df = live_df
+
+# Initialize tracking for the ban alerts
+if 'known_revealed_bans' not in st.session_state:
+    st.session_state.known_revealed_bans = set()
+if 'ban_alert_expiry' not in st.session_state:
+    st.session_state.ban_alert_expiry = 0
+if 'last_banned_player' not in st.session_state:
+    st.session_state.last_banned_player = ""
+
 ban_registry = {}
 # Create ban registry if round 7
 if match_id in rounds.get('round7', []):
@@ -238,6 +247,30 @@ if match_id in rounds.get('round7', []):
 
 # Save to session state for the matchups tab
 st.session_state.ban_registry = ban_registry
+
+# --- Round 7 Reveal Notification Logic ---
+if match_id in rounds.get('round7', []):
+    # Determine which bans are currently 'revealed' (in registry AND on field)
+    p_map = live_df.set_index('Player')['Total Points'].to_dict() if not live_df.empty else {}
+    current_revealed_bans = {p for p in ban_registry if p in p_map}
+
+    # Find if there are any players in the current set that weren't there before
+    new_reveals = current_revealed_bans - st.session_state.known_revealed_bans
+
+    if new_reveals:
+        # Trigger the alert
+        player_name = ", ".join(new_reveals)
+        st.session_state.last_banned_player = player_name
+        st.session_state.known_revealed_bans.update(new_reveals)
+        # Set expiry for 30 seconds from now
+        st.session_state.ban_alert_expiry = time.time() + 30
+
+    # Display the banner if the current time is within the 30-second window
+    if time.time() < st.session_state.ban_alert_expiry:
+        # Using st.error for a red, high-visibility banner
+        st.error(f"🚫 **NEW BAN REVEALED:** {st.session_state.last_banned_player} is/are now Banned!")
+        st.toast(f"**NEW BAN:** {st.session_state.last_banned_player} is/are now Banned!", icon="🚫")
+
 
 # --- DYNAMIC TABS ---
 is_admin = st.session_state.get('username') == "Valar Morghulis" # Set your admin username here
