@@ -22,23 +22,6 @@ cookie_manager = stx.CookieManager()
 # Initialize a master key flag for locking the team after match has started
 lock_master_flag = True # Set True before deploying
 
-# --- CSS TO REDUCE TOP WHITESPACE ---
-st.markdown("""
-    <style>
-        /* Target the main container padding */
-        .block-container {
-            padding-top: 1.5rem !important;
-            padding-bottom: 0rem !important;
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-        }
-        /* Optionally hide the top header/anchor space */
-        header {visibility: hidden;}
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-    </style>
-""", unsafe_allow_html=True)
-
 # Initialize a flag to track manual logouts
 if 'manual_logout' not in st.session_state:
     st.session_state.manual_logout = False
