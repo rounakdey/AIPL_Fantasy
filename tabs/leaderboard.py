@@ -179,7 +179,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
 
         # Captaincy Advantages
-        if my_data['c'] not in target_data['b']:
+        if my_data['c'] not in unique_banned:
             if my_data['c'] == target_data['vc']:
                 bonus_mult = mult_picked_by.get(my_data['c'], 0 if hide_multipliers else 1)
                 base = mult_txt['CV']
@@ -197,7 +197,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
                 multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
                 p_display = style_p(my_data['c'], my_data['b'])
                 st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
-        if my_data['vc'] not in target_data['b']:
+        if my_data['vc'] not in unique_banned:
             if my_data['vc'] in target_data['p'] and my_data['vc'] not in [target_data['c'],
                                                                            target_data['vc']]:
                 bonus_mult = mult_picked_by.get(my_data['vc'], 0 if hide_multipliers else 1)
@@ -253,7 +253,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
             st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
 
         # Their Captaincy Advantages
-        if target_data['c'] not in my_data['b']:
+        if target_data['c'] not in their_unique_banned:
             if target_data['c'] == my_data['vc']:
                 bonus_mult = mult_picked_by.get(target_data['c'], 0 if hide_multipliers else 1)
                 base = mult_txt['CV']
@@ -271,7 +271,7 @@ def render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_mul
                 multiplier = f"{round(base * bonus_mult, 2)}" if bonus_mult > 0 else f"?"
                 p_display = style_p(target_data['c'], target_data['b'])
                 st.markdown(f"{icon} **{p_display} (+{multiplier}x)**: {label}", unsafe_allow_html=True)
-        if target_data['vc'] not in my_data['b']:
+        if target_data['vc'] not in their_unique_banned:
             if target_data['vc'] in my_data['p'] and target_data['vc'] not in [my_data['c'], my_data['vc']]:
                 bonus_mult = mult_picked_by.get(target_data['vc'], 0 if hide_multipliers else 1)
                 base = mult_txt['VP']
