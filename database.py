@@ -34,10 +34,10 @@ def join_league_all_matches(username, hashed_pw):
     # 1. Register the global user account
     supabase.table("users").upsert({"username": username, "password": hashed_pw}).execute()
 
-    # 2. Prepare 70 match entries for this user
+    # 2. Prepare 80 match entries for this user
     batch_data = [
         {"username": username, "match_id": f"match_{i}", "captain": "-", "vice_captain": "-", "banned": "-"}
-        for i in range(1, 71)
+        for i in range(1, 81)
     ]
 
     # 3. Insert into match_teams (upsert handles existing entries safely)

@@ -202,7 +202,13 @@ with st.sidebar:
 # Auto-Refresh Logic
 if st.session_state.refresh_enabled:
     st_autorefresh(interval=60000, key="global_refresh")
-    st.session_state.live_df = scraper.get_live_stats(current_url, match_id)
+    if match_info['Addl_string'] == " Inn 1":
+        inn = 1
+    elif match_info['Addl_string'] == " Inn 2":
+        inn = 2
+    else:
+        inn = None
+    st.session_state.live_df = scraper.get_live_stats(current_url, match_id, inn = inn)
 
 # Get Lineups
 time_to_start = (match_info['match_dt'] - now_gmt).total_seconds() / 60
@@ -321,6 +327,8 @@ with t1:
         header_round_text = "Round 6 (Low-scoring Player Bonus):"
     elif match_id in rounds['round7']:
         header_round_text = "Round 7 (Ban Round):"
+    elif match_id in rounds['round8']:
+        header_round_text = "Round 8 (Half-Match Round):"
     else:
         header_round_text = "Rules TBD:"
 
@@ -328,7 +336,7 @@ with t1:
     full_header_html = f"""
     <div style="font-size:32px; font-weight:bold; line-height:1.2;">
         💎 {header_round_text}<br>
-        {match_id.replace('_', ' ').upper()}, {match_info['Team 1']} vs {match_info['Team 2']}
+        {match_id.replace('_', ' ').upper()}, {match_info['Team 1']} vs {match_info['Team 2']}{match_info['Addl_string']}
     </div>
     <hr style="margin-top:5px; margin-bottom:10px; border:0; border-top:2px solid #31333F; opacity:0.2;">
     """
@@ -373,6 +381,7 @@ with t1:
             {"Category": "Bonus", "Action": "Player of the Match", "Points": "+25"},
             {"Category": "Multipliers", "Action": "Captain", "Points": "2x Total Points"},
             {"Category": "Multipliers", "Action": "Vice-Captain", "Points": "1.5x Total Points"},
+            {"Category": "Round 2 Specific", "Action": "Foreigner Restriction", "Points": "Maximum 4 foreigners allowed"},
             {"Category": "Round 3 Specific", "Action": "Per Opener", "Points": "-50"},
             {"Category": "Round 4 Specific", "Action": "Wicket / Hauls (3/5/7)", "Points": "+30 / +50 / +100 / +200"},
             {"Category": "Round 5 Specific", "Action": "Selection Rate Multiplier",
@@ -381,6 +390,8 @@ with t1:
              "Points": "Sum of Player Ranks"},
             {"Category": "Round 7 Specific", "Action": "Ban Round",
              "Points": "Banned Players Earn No Points"},
+            {"Category": "Round 8 Specific", "Action": "Half-Match Round",
+             "Points": "Six player squad, no restrictions"},
         ]))
 
 if is_match_started:

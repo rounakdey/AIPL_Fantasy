@@ -15,6 +15,7 @@ rounds = {
     'round5': [f"match_{i}" for i in range(38, 47)],
     'round6': [f"match_{i}" for i in range(47, 56)],
     'round7': [f"match_{i}" for i in range(56, 65)],
+    'round8': [f"match_{i}" for i in range(65, 74)],
 }
 
 def get_three_part_name_map(player_list):
@@ -76,8 +77,9 @@ def sort_squad(df, lineups):
 def load_schedule():
     df = pd.read_csv("match_schedule.csv")
     df['match_dt'] = pd.to_datetime(df['Date'] + ' ' + df['Start Time'], format='%b %d %Y %H:%M %Z')
+    df['Addl_string'] = df['Addl_string'].fillna("")
     df['display'] = df.apply(
-        lambda x: f"Match {x.name + 1}: {x['Team 1']} vs {x['Team 2']}, {x['Date']}, {x['Start Time']}", axis=1)
+        lambda x: f"Match {x.name + 1}: {x['Team 1']} vs {x['Team 2']}{x['Addl_string']}, {x['Date']}, {x['Start Time']}", axis=1)
     return df
 
 @st.cache_data

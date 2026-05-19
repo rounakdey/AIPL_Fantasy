@@ -6,8 +6,9 @@ from utils import rounds
 
 def render_admin(match_id, match_info):
     st.header("Admin Override: Manual Team Edit")
+    squad_size = 6 if match_id in rounds['round8'] else 11
     st.info(
-        "As Admin, you can edit any manager's team. Rules (Overseas/Role) are bypassed, but you must pick exactly 11 players.")
+        f"As Admin, you can edit any manager's team. Rules (Overseas/Role) are bypassed, but you must pick exactly {squad_size} players.")
 
     # 1. Select which manager to edit
     all_managers = list(db.load_league_data(match_id).keys())
@@ -73,10 +74,10 @@ def render_admin(match_id, match_info):
                                              'b') in all_players_admin else 0,
                                          key="admin_banned")
 
-    # 4. Save Logic (Bypass everything except the 11-player count)
+    # 4. Save Logic (Bypass everything except the 11 or 6-player count)
     if st.button("🛠️ FORCE UPDATE TEAM", use_container_width=True):
-        if len(admin_selected) != 11:
-            st.error(f"Error: Exactly 11 players required (Currently {len(admin_selected)})")
+        if len(admin_selected) != squad_size:
+            st.error(f"Error: Exactly {squad_size} players required (Currently {len(admin_selected)})")
         elif new_c == "-" or new_vc == "-":
             st.error("Error: Must select Captain and Vice-Captain")
         else:

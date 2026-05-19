@@ -22,7 +22,7 @@ def parse_fielding(dismissal_text):
         fielders.append({'name': clean_name(text[2:].split(" b ")[0].strip()), 'type': 'catch'})
     return fielders
 
-def get_live_stats(url, match_id):
+def get_live_stats(url, match_id, inn = None):
     try:
         SCORING = {
             'run': 1, 'four': 2, 'six': 3, 'duck': -10,
@@ -55,8 +55,16 @@ def get_live_stats(url, match_id):
         # New: List to store openers
         openers = []
 
-        # Batting Tables
-        bat_tables = soup.find_all('div', id=re.compile('innings-\\d'))
+        # Main Scorecard Tables
+        bat_tables = soup.find_all('div', id=re.compile(r'^scard-.*-innings-\d'))
+        ## Filter based on innings
+        if inn is not None and len(bat_tables) > 0:
+            if inn == 1:
+                bat_tables = bat_tables[:1]
+            elif inn == 2:
+                bat_tables = bat_tables[1:]
+
+        ## Find openers separately
         for table in bat_tables:
             # Find all batting rows in this innings
             rows = table.find_all('div', class_='scorecard-bat-grid')
@@ -70,62 +78,64 @@ def get_live_stats(url, match_id):
                         openers.append(name)
                     count += 1
 
+        ## Parse Scorecard for points
         unique_batting, unique_bowling, fielding_pts, processed = {}, {}, {}, set()
 
-        for row in soup.find_all('div', class_='scorecard-bat-grid'):
-            cols = row.find_all('div', recursive=False)
-            if not cols or "Batter" in cols[0].text: continue
-            try:
-                name = clean_name(row.find('a', class_='text-cbTextLink').text.strip())
-                role = role_map.get(name, "Unknown")  # Get role for this specific player
-                d_div = cols[0].find('div', class_='text-cbTxtSec')
-                if d_div:
-                    raw_d_text = d_div.text.strip()
-                    d_text_lower = raw_d_text.lower()  # Use this for the Duck check
-
-                    if f"{name}_{d_text_lower}" not in processed:
-                        for f in parse_fielding(raw_d_text):
-                            f_name = f['name']
-                            # If the parsed name is a 2-part version of a 3-part name,
-                            # map it back to the official full name.
-                            f_resolved_name = name_resolver.get(f_name, f_name)
-                            fielding_pts[f_resolved_name] = fielding_pts.get(f_resolved_name, 0) + SCORING.get(f['type'], 0)
-                        processed.add(f"{name}_{d_text_lower}")
-                else:
-                    d_text_lower = "not out"
-
-                # Now use the lower version for the duck check
-                is_not_out = any(
-                    phrase in d_text_lower for phrase in ["batting", "not out", "retired hurt", "absent out", "absent", "hurt"])
-                # Note: "retired out" DOES count as a dismissal/duck
-                if name not in unique_batting:
-                    runs, balls, fours, sixes = int(cols[1].text), int(cols[2].text), int(cols[3].text), int(cols[4].text)
-                    b_pts = (runs * SCORING['run']) + (fours * SCORING['four']) + (sixes * SCORING['six'])
-                    b_pts += (runs // 25) * 10        # Milestone: +10 every 25 runs
-                    b_pts += (runs - balls)           # Strike-rate: Runs - Balls
-                    if runs == 0 and not is_not_out and role != "Bowler":
-                        b_pts += SCORING['duck']
-                    unique_batting[name] = {"BatPts": b_pts}
-            except: continue
-
-        for row in soup.find_all('div', class_='scorecard-bowl-grid'):
-            try:
-                name = clean_name(row.find('a', class_='text-cbTextLink').text.strip())
-                if name in unique_bowling: continue
+        for table in bat_tables:
+            for row in table.find_all('div', class_='scorecard-bat-grid'):
                 cols = row.find_all('div', recursive=False)
-                ov_str = cols[0].text.split('.')
-                total_balls = (int(ov_str[0]) * 6) + (int(ov_str[1]) if len(ov_str) > 1 else 0)
-                m, r_conc, w = int(cols[1].text), int(cols[2].text), int(cols[3].text)
-                w_pts = (w * SCORING['wicket']) + (m * SCORING['maiden'])
-                w_pts += (total_balls * 3) - r_conc  # Economy: (Balls x 3) - Runs
-                if w >= 7: w_pts += SCORING.get('sevenwicket', 100)           # 7-Wicket Haul
-                elif w >= 5: w_pts += SCORING.get('fivewicket', 50)         # 5-Wicket Haul
-                elif w >= 3: w_pts += SCORING.get('threewicket', 25)         # 3-Wicket Haul
-                unique_bowling[name] = {"BowlPts": w_pts}
-            except: continue
+                if not cols or "Batter" in cols[0].text: continue
+                try:
+                    name = clean_name(row.find('a', class_='text-cbTextLink').text.strip())
+                    role = role_map.get(name, "Unknown")  # Get role for this specific player
+                    d_div = cols[0].find('div', class_='text-cbTxtSec')
+                    if d_div:
+                        raw_d_text = d_div.text.strip()
+                        d_text_lower = raw_d_text.lower()  # Use this for the Duck check
+
+                        if f"{name}_{d_text_lower}" not in processed:
+                            for f in parse_fielding(raw_d_text):
+                                f_name = f['name']
+                                # If the parsed name is a 2-part version of a 3-part name,
+                                # map it back to the official full name.
+                                f_resolved_name = name_resolver.get(f_name, f_name)
+                                fielding_pts[f_resolved_name] = fielding_pts.get(f_resolved_name, 0) + SCORING.get(f['type'], 0)
+                            processed.add(f"{name}_{d_text_lower}")
+                    else:
+                        d_text_lower = "not out"
+
+                    # Now use the lower version for the duck check
+                    is_not_out = any(
+                        phrase in d_text_lower for phrase in ["batting", "not out", "retired hurt", "absent out", "absent", "hurt"])
+                    # Note: "retired out" DOES count as a dismissal/duck
+                    if name not in unique_batting:
+                        runs, balls, fours, sixes = int(cols[1].text), int(cols[2].text), int(cols[3].text), int(cols[4].text)
+                        b_pts = (runs * SCORING['run']) + (fours * SCORING['four']) + (sixes * SCORING['six'])
+                        b_pts += (runs // 25) * 10        # Milestone: +10 every 25 runs
+                        b_pts += (runs - balls)           # Strike-rate: Runs - Balls
+                        if runs == 0 and not is_not_out and role != "Bowler":
+                            b_pts += SCORING['duck']
+                        unique_batting[name] = {"BatPts": b_pts}
+                except: continue
+
+            for row in table.find_all('div', class_='scorecard-bowl-grid'):
+                try:
+                    name = clean_name(row.find('a', class_='text-cbTextLink').text.strip())
+                    if name in unique_bowling: continue
+                    cols = row.find_all('div', recursive=False)
+                    ov_str = cols[0].text.split('.')
+                    total_balls = (int(ov_str[0]) * 6) + (int(ov_str[1]) if len(ov_str) > 1 else 0)
+                    m, r_conc, w = int(cols[1].text), int(cols[2].text), int(cols[3].text)
+                    w_pts = (w * SCORING['wicket']) + (m * SCORING['maiden'])
+                    w_pts += (total_balls * 3) - r_conc  # Economy: (Balls x 3) - Runs
+                    if w >= 7: w_pts += SCORING.get('sevenwicket', 100)           # 7-Wicket Haul
+                    elif w >= 5: w_pts += SCORING.get('fivewicket', 50)         # 5-Wicket Haul
+                    elif w >= 3: w_pts += SCORING.get('threewicket', 25)         # 3-Wicket Haul
+                    unique_bowling[name] = {"BowlPts": w_pts}
+                except: continue
 
         all_p = set(list(unique_batting.keys()) + list(unique_bowling.keys()) + list(fielding_pts.keys()))
-        potm_name = get_potm(url)
+        potm_name = None if match_id in rounds['round8'] else get_potm(url)
         merged = []
         for p in all_p:
             role = role_map.get(p, "Unknown")

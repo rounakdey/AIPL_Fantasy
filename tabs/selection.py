@@ -58,15 +58,20 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
             "Batting Allrounder": "🏏⚾",
             "Bowling Allrounder": "⚾🏏"
         }
-        st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}")
+        st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}{match_info['Addl_string']}")
 
         # Display Rules
         with st.expander("Show Selection Rules 📜"):
-            st.markdown("""
-            * **Total:** Exactly 11 players.
-            * **Team Limit:** Max 8 players from one team.
-            * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
-            """)
+            if match_id in rounds['round8']:
+                st.markdown("""
+                                                * **Total:** Exactly 6 players. No other restrictions.
+                                                """)
+            else:
+                st.markdown("""
+                                * **Total:** Exactly 11 players.
+                                * **Team Limit:** Max 8 players from one team.
+                                * **Roles:** At least 1 Batsman, 1 Bowler, 1 WK-Batsman, and 1 Allrounder.
+                                """)
 
         sq = utils.load_squads()
         ld = db.load_league_data(match_id)
@@ -116,18 +121,35 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
         n_ar = len(sel_df[sel_df['Role'].isin(['Batting Allrounder', 'Bowling Allrounder'])])
 
         # Validation Checks
-        valid_count = (len(selected_players) == 11)
-        valid_overseas = (overseas_count <= 11)
-        valid_teams = (team1_count <= 8 and team2_count <= 8)
-        valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
+        if match_id in rounds['round8']:
+            valid_count = (len(selected_players) == 6)
+            valid_overseas = (overseas_count <= 6)
+            valid_teams = (team1_count <= 6 and team2_count <= 6)
+            valid_roles = (n_bat >= 0 and n_bowl >= 0 and n_wk >= 0 and n_ar >= 0)
+        else:
+            valid_count = (len(selected_players) == 11)
+            valid_overseas = (overseas_count <= 4) if match_id in rounds['round2'] else (overseas_count <= 11)
+            valid_teams = (team1_count <= 8 and team2_count <= 8)
+            valid_roles = (n_bat >= 1 and n_bowl >= 1 and n_wk >= 1 and n_ar >= 1)
 
         # UI Indicators
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Selected", f"{len(selected_players)}/11")
-        c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
-                  delta_color="inverse")
-        c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
-        c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
+        if match_id in rounds['round8']:
+            c1.metric("Selected", f"{len(selected_players)}/6")
+            c2.metric("Overseas ✈️", f"{overseas_count}/6", delta=None if valid_overseas else "Too many",
+                      delta_color="inverse")
+            c3.metric("Team Max", f"{max(team1_count, team2_count)}/6")
+            c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
+        else:
+            c1.metric("Selected", f"{len(selected_players)}/11")
+            if match_id in rounds['round2']:
+                c2.metric("Overseas ✈️", f"{overseas_count}/4", delta=None if valid_overseas else "Too many",
+                      delta_color="inverse")
+            else:
+                c2.metric("Overseas ✈️", f"{overseas_count}/11", delta=None if valid_overseas else "Too many",
+                          delta_color="inverse")
+            c3.metric("Team Max", f"{max(team1_count, team2_count)}/8")
+            c4.metric("WK/AR/Bat/Bowl", f"{n_wk}/{n_ar}/{n_bat}/{n_bowl}")
 
         if valid_count and valid_overseas and valid_teams and valid_roles:
             if match_id in rounds['round7']:
@@ -160,7 +182,10 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
                 st.success("Selection Locked!")
         else:
             errors = []
-            if not valid_count: errors.append("Select exactly 11 players.")
+            if match_id in rounds['round8']:
+                if not valid_count: errors.append("Select exactly 6 players.")
+            else:
+                if not valid_count: errors.append("Select exactly 11 players.")
             if not valid_overseas: errors.append("Max 11 overseas✈️ players allowed.")
             if not valid_teams: errors.append("Max 8 players from a single team.")
             if not valid_roles: errors.append("Must have at least 1 Batsman, 1 Bowler, 1 WK, and 1 Allrounder.")
