@@ -314,23 +314,23 @@ with t2:
 with t1:
     header_round_text = ""
     if match_id in rounds['round1']:
-        header_round_text = "Round 1 (Vanilla):"
+        header_round_text = "Shubho Mohaloya (Vanilla):"
     elif match_id in rounds['round2']:
-        header_round_text = "Round 2 (Foreigner Restriction):"
+        header_round_text = "Ponchomir Raat (Foreigner Restriction):"
     elif match_id in rounds['round3']:
-        header_round_text = "Round 3 (Opener Penalty):"
+        header_round_text = "Shoshthhir Bodhon (Opener Penalty):"
     elif match_id in rounds['round4']:
-        header_round_text = "Round 4 (Bowler Bonus):"
+        header_round_text = "Shubho MohaShoptomi (Bowler Bonus):"
     elif match_id in rounds['round5']:
-        header_round_text = "Round 5 (Unique Player Bonus):"
+        header_round_text = "Shoptomir Bikel (Unique Player Bonus):"
     elif match_id in rounds['round6']:
-        header_round_text = "Round 6 (Low-scoring Player Bonus):"
+        header_round_text = "Shubho MohaOshtomi (Low-scoring Player Bonus):"
     elif match_id in rounds['round7']:
-        header_round_text = "Round 7 (Ban Round):"
+        header_round_text = "Sondhi Pujo (Ban Round):"
     elif match_id in rounds['round8']:
         header_round_text = "Nobomir Raat (Half-Match Round):"
     else:
-        header_round_text = "Rules TBD:"
+        header_round_text = "Pujo Aschhe:"
 
     # Construct the full HTML string
     full_header_html = f"""
