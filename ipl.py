@@ -328,7 +328,7 @@ with t1:
     elif match_id in rounds['round7']:
         header_round_text = "Round 7 (Ban Round):"
     elif match_id in rounds['round8']:
-        header_round_text = "Round 8 (Half-Match Round):"
+        header_round_text = "Nobomir Raat (Half-Match Round):"
     else:
         header_round_text = "Rules TBD:"
 
