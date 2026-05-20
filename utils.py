@@ -89,7 +89,7 @@ def load_schedule():
     ]
     df["Addl_string"] = np.select(conditions, choices, default="")
     df['display'] = df.apply(
-        lambda x: f"Match {x.name + 1}: {x['Addl_string']}{x['Team 1']} vs {x['Team 2']}, {x['Date']}, {x['Start Time']}", axis=1)
+        lambda x: f"Match {x.name + 1}: {x['Addl_string']}{x['Team 1'][:3].upper()} vs {x['Team 2'][:3].upper()}, {x['Date']}, {x['Start Time']}", axis=1)
     return df
 
 @st.cache_data
