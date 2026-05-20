@@ -314,23 +314,23 @@ with t2:
 with t1:
     header_round_text = ""
     if match_id in rounds['round1']:
-        header_round_text = "Shubho Mohaloya (Vanilla):"
+        header_round_text = "শুভ মহালয়া (Vanilla):"
     elif match_id in rounds['round2']:
-        header_round_text = "Ponchomir Raat (Foreigner Restriction):"
+        header_round_text = "পঞ্চমীর রাত (Foreigner Restriction):"
     elif match_id in rounds['round3']:
-        header_round_text = "Shoshthhir Bodhon (Opener Penalty):"
+        header_round_text = "ষষ্ঠীর বোধন (Opener Penalty):"
     elif match_id in rounds['round4']:
-        header_round_text = "Shubho MohaShoptomi (Bowler Bonus):"
+        header_round_text = "শুভ মহাসপ্তমী (Bowler Bonus):"  # Fixed to দন্ত্য স (স)
     elif match_id in rounds['round5']:
-        header_round_text = "Shoptomir Bikel (Unique Player Bonus):"
+        header_round_text = "সপ্তমীর বিকেল (Unique Player Bonus):"
     elif match_id in rounds['round6']:
-        header_round_text = "Shubho MohaOshtomi (Low-scoring Player Bonus):"
+        header_round_text = "শুভ মহাঅষ্টমী (Low-scoring Player Bonus):"
     elif match_id in rounds['round7']:
-        header_round_text = "Sondhi Pujo (Ban Round):"
+        header_round_text = "সন্ধি পুজো (Ban Round):"
     elif match_id in rounds['round8']:
-        header_round_text = "Nobomir Raat (Half-Match Round):"
+        header_round_text = "নবমীর রাত (Half-Match Round):"
     else:
-        header_round_text = "Pujo Aschhe:"
+        header_round_text = "পুজো আসছে:"
 
     # Construct the full HTML string
     full_header_html = f"""
