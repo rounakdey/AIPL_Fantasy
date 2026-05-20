@@ -202,10 +202,10 @@ with st.sidebar:
 # Auto-Refresh Logic
 if st.session_state.refresh_enabled:
     st_autorefresh(interval=60000, key="global_refresh")
-    if match_info['Addl_string'] == " Inn 1":
-        inn = 1
-    elif match_info['Addl_string'] == " Inn 2":
-        inn = 2
+    if match_info['Innings'] == 1:
+        inn = match_info['Team 1']
+    elif match_info['Innings'] == 2:
+        inn = match_info['Team 2']
     else:
         inn = None
     st.session_state.live_df = scraper.get_live_stats(current_url, match_id, inn = inn)
@@ -336,7 +336,7 @@ with t1:
     full_header_html = f"""
     <div style="font-size:32px; font-weight:bold; line-height:1.2;">
         💎 {header_round_text}<br>
-        {match_id.replace('_', ' ').upper()}, {match_info['Team 1']} vs {match_info['Team 2']}{match_info['Addl_string']}
+        {match_id.replace('_', ' ').upper()}, {match_info['Addl_string']}{match_info['Team 1']} vs {match_info['Team 2']}
     </div>
     <hr style="margin-top:5px; margin-bottom:10px; border:0; border-top:2px solid #31333F; opacity:0.2;">
     """

@@ -58,7 +58,7 @@ def render_selection(match_id, match_info, lock_master_flag, is_match_started):
             "Batting Allrounder": "🏏⚾",
             "Bowling Allrounder": "⚾🏏"
         }
-        st.header(f"Squad Selection: {match_info['Team 1']} vs {match_info['Team 2']}{match_info['Addl_string']}")
+        st.header(f"Squad Selection: {match_info['Addl_string']}{match_info['Team 1']} vs {match_info['Team 2']}")
 
         # Display Rules
         with st.expander("Show Selection Rules 📜"):

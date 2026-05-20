@@ -1,4 +1,5 @@
 import streamlit as st
+import numpy as np
 import pandas as pd
 import hashlib
 import re
@@ -77,9 +78,18 @@ def sort_squad(df, lineups):
 def load_schedule():
     df = pd.read_csv("match_schedule.csv")
     df['match_dt'] = pd.to_datetime(df['Date'] + ' ' + df['Start Time'], format='%b %d %Y %H:%M %Z')
-    df['Addl_string'] = df['Addl_string'].fillna("")
+    df['Innings'] = df['Innings'].fillna(0)
+
+    # Display separate Innings for separate Innings round matches
+    conditions = [df["Innings"] == 0, df["Innings"] == 1, df["Innings"] == 2]
+    choices = [
+        "",
+        df["Team 1"].str[:3].str.upper() + " Innings, ",
+        df["Team 2"].str[:3].str.upper() + " Innings, "
+    ]
+    df["Addl_string"] = np.select(conditions, choices, default="")
     df['display'] = df.apply(
-        lambda x: f"Match {x.name + 1}: {x['Team 1']} vs {x['Team 2']}{x['Addl_string']}, {x['Date']}, {x['Start Time']}", axis=1)
+        lambda x: f"Match {x.name + 1}: {x['Addl_string']}{x['Team 1']} vs {x['Team 2']}, {x['Date']}, {x['Start Time']}", axis=1)
     return df
 
 @st.cache_data

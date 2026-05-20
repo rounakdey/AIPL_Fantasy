@@ -1,4 +1,4 @@
-Team 1,Team 2,Date,Start Time,URL,Addl_string
+Team 1,Team 2,Date,Start Time,URL,Innings
 Royal Challengers Bengaluru,Sunrisers Hyderabad,Mar 28 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/149618/srh-vs-rcb-1st-match-indian-premier-league-2026,
 Mumbai Indians,Kolkata Knight Riders,Mar 29 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/149629/kkr-vs-mi-2nd-match-indian-premier-league-2026,
 Rajasthan Royals,Chennai Super Kings,Mar 30 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/149640/rr-vs-csk-3rd-match-indian-premier-league-2026,
@@ -63,19 +63,19 @@ Punjab Kings,Royal Challengers Bengaluru,May 17 2026,10:00 GMT,https://www.cricb
 Delhi Capitals,Rajasthan Royals,May 17 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152185/dc-vs-rr-62nd-match-indian-premier-league-2026,
 Chennai Super Kings,Sunrisers Hyderabad,May 18 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152196/csk-vs-srh-63rd-match-indian-premier-league-2026,
 Rajasthan Royals,Lucknow Super Giants,May 19 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152207/rr-vs-lsg-64th-match-indian-premier-league-2026,
-Kolkata Knight Riders,Mumbai Indians,May 20 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152218/kkr-vs-mi-65th-match-indian-premier-league-2026, Inn 1
-Kolkata Knight Riders,Mumbai Indians,May 20 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152218/kkr-vs-mi-65th-match-indian-premier-league-2026, Inn 2
-Chennai Super Kings,Gujarat Titans,May 21 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152229/csk-vs-gt-66th-match-indian-premier-league-2026, Inn 1
-Chennai Super Kings,Gujarat Titans,May 21 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152229/csk-vs-gt-66th-match-indian-premier-league-2026, Inn 2
-Sunrisers Hyderabad,Royal Challengers Bengaluru,May 22 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152240/srh-vs-rcb-67th-match-indian-premier-league-2026, Inn 1
-Sunrisers Hyderabad,Royal Challengers Bengaluru,May 22 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152240/srh-vs-rcb-67th-match-indian-premier-league-2026, Inn 2
-Lucknow Super Giants,Punjab Kings,May 23 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152241/lsg-vs-pbks-68th-match-indian-premier-league-2026, Inn 1
-Lucknow Super Giants,Punjab Kings,May 23 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152241/lsg-vs-pbks-68th-match-indian-premier-league-2026, Inn 2
-Mumbai Indians,Rajasthan Royals,May 24 2026,10:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026, Inn 1
-Mumbai Indians,Rajasthan Royals,May 24 2026,10:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026, Inn 2
-Kolkata Knight Riders,Delhi Capitals,May 24 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026, Inn 1
-Kolkata Knight Riders,Delhi Capitals,May 24 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026, Inn 2
-Punjab Kings,Mumbai Indians,May 26 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026, Inn 1
-Lucknow Super Giants,Chennai Super Kings,May 27 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026, Inn 2
-Kolkata Knight Riders,Gujarat Titans,May 29 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026, Inn 1
-Punjab Kings,Royal Challengers Bengaluru,May 31 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026, Inn 2
+Kolkata Knight Riders,Mumbai Indians,May 20 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152218/kkr-vs-mi-65th-match-indian-premier-league-2026,1
+Kolkata Knight Riders,Mumbai Indians,May 20 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152218/kkr-vs-mi-65th-match-indian-premier-league-2026,2
+Chennai Super Kings,Gujarat Titans,May 21 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152229/csk-vs-gt-66th-match-indian-premier-league-2026,1
+Chennai Super Kings,Gujarat Titans,May 21 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152229/csk-vs-gt-66th-match-indian-premier-league-2026,2
+Sunrisers Hyderabad,Royal Challengers Bengaluru,May 22 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152240/srh-vs-rcb-67th-match-indian-premier-league-2026,1
+Sunrisers Hyderabad,Royal Challengers Bengaluru,May 22 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152240/srh-vs-rcb-67th-match-indian-premier-league-2026,2
+Lucknow Super Giants,Punjab Kings,May 23 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152241/lsg-vs-pbks-68th-match-indian-premier-league-2026,1
+Lucknow Super Giants,Punjab Kings,May 23 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152241/lsg-vs-pbks-68th-match-indian-premier-league-2026,2
+Mumbai Indians,Rajasthan Royals,May 24 2026,10:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026,1
+Mumbai Indians,Rajasthan Royals,May 24 2026,10:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026,2
+Kolkata Knight Riders,Delhi Capitals,May 24 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026,1
+Kolkata Knight Riders,Delhi Capitals,May 24 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026,2
+Punjab Kings,Mumbai Indians,May 26 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026,
+Lucknow Super Giants,Chennai Super Kings,May 27 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152252/mi-vs-rr-69th-match-indian-premier-league-2026,
+Kolkata Knight Riders,Gujarat Titans,May 29 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026,
+Punjab Kings,Royal Challengers Bengaluru,May 31 2026,14:00 GMT,https://www.cricbuzz.com/live-cricket-scorecard/152263/kkr-vs-dc-70th-match-indian-premier-league-2026,

@@ -56,16 +56,17 @@ def get_live_stats(url, match_id, inn = None):
         openers = []
 
         # Main Scorecard Tables
-        bat_tables = soup.find_all('div', id=re.compile(r'^scard-.*-innings-\d'))
+        scard_tables = soup.find_all('div', id=re.compile(r'.*-innings-\d'))
+        inn1_team = (scard_tables[0].find('div', class_='tb:block')).get_text(strip=True)
         ## Filter based on innings
-        if inn is not None and len(bat_tables) > 0:
-            if inn == 1:
-                bat_tables = bat_tables[:1]
-            elif inn == 2:
-                bat_tables = bat_tables[1:]
+        if inn is not None and len(scard_tables) > 0:
+            if inn == inn1_team:
+                scard_tables = scard_tables[:2]
+            else:
+                scard_tables = scard_tables[2:]
 
         ## Find openers separately
-        for table in bat_tables:
+        for table in scard_tables:
             # Find all batting rows in this innings
             rows = table.find_all('div', class_='scorecard-bat-grid')
             # The first two rows with actual player names are the openers
@@ -81,7 +82,7 @@ def get_live_stats(url, match_id, inn = None):
         ## Parse Scorecard for points
         unique_batting, unique_bowling, fielding_pts, processed = {}, {}, {}, set()
 
-        for table in bat_tables:
+        for table in scard_tables:
             for row in table.find_all('div', class_='scorecard-bat-grid'):
                 cols = row.find_all('div', recursive=False)
                 if not cols or "Batter" in cols[0].text: continue
