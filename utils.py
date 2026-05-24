@@ -17,6 +17,8 @@ rounds = {
     'round6': [f"match_{i}" for i in range(47, 56)],
     'round7': [f"match_{i}" for i in range(56, 65)],
     'round8': [f"match_{i}" for i in range(65, 74)],
+    'playoffs': [f"match_{i}" for i in range(74, 77)],
+    'final': [f"match_{i}" for i in range(77, 78)],
 }
 
 def get_three_part_name_map(player_list):

@@ -286,13 +286,23 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_
     # Find the row for this match and user
     h2h_row = h2h_sched[
         (h2h_sched['Match'] == match_num) &
-        ((h2h_sched['Team1'] == curr_user) | (h2h_sched['Team2'] == curr_user))
+        ((h2h_sched['Team1'] == curr_user) | (h2h_sched['Team2'] == curr_user) | (h2h_sched['Team3'] == curr_user))
         ]
     if not h2h_row.empty:
         row = h2h_row.iloc[0]
-        opponent = row['Team2'] if row['Team1'] == curr_user else row['Team1']
+        row = row.where(pd.notnull(row), None)
+        if match_id in rounds['playoffs']:
+            if row['Team1'] == curr_user:
+                opponents = [row['Team2'], row['Team3']]
+            elif row['Team2'] == curr_user:
+                opponents = [row['Team1'], row['Team3']]
+            else:
+                opponents = [row['Team1'], row['Team2']]
+            opponents = [opp for opp in opponents if opp is not None]
+        else:
+            opponents = [row['Team2'] if row['Team1'] == curr_user else row['Team1']]
     else:
-        opponent = None
+        opponents = []
 
     if not live_df.empty and standings:
         if match_id in rounds['round5']:
@@ -350,34 +360,35 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_
         user_in_standings = any(s['Manager'] == curr_user for s in standings)
         if user_in_standings:
             my_data = get_sanitized_data(curr_user)
-            if opponent is not None:
-                # --- H2H Matchup ---
-                st.subheader(f"⚔️ H2H Strategy: Path to beating {opponent}")
-
-                # Check if opponent manager have created teams
-                opp_in_standings = any(s['Manager'] == opponent for s in standings)
-
-                if not opp_in_standings:
-                    st.info(f"💡 You get a freebie, **{opponent}** has not created a team for this match.")
-                else:
-                    # 2. Get Score Data from standings
-                    my_score = next(s['Score'] for s in standings if s['Manager'] == curr_user)
-                    opp_score = next(s['Score'] for s in standings if s['Manager'] == opponent)
-                    h2h_diff = my_score - opp_score
-
-                    if h2h_diff > 0:
-                        st.write(f"✅ You are currently leading **{opponent}** by **{h2h_diff}** pts!")
-                    elif h2h_diff < 0:
-                        st.write(f"📈 You are trailing **{opponent}** by **{abs(h2h_diff)}** pts.")
-                    else:
-                        st.write(f"⚖️ You and **{opponent}** are currently tied!")
-
-                    # 3. Structural Comparison (Mirroring your Path to #1 logic)
-                    target_data = get_sanitized_data(opponent)
-
-                    render_h2h(my_data, target_data, mult_picked_by, h2h_diff, diff_breaks, hide_multipliers)
-            else:
+            if len(opponents) == 0:
                 st.info(f"🏝️ You have no opponents for this match.")
+            else:
+                for opponent in opponents:
+                    # --- H2H Matchup ---
+                    st.subheader(f"⚔️ H2H Strategy: Path to beating {opponent}")
+
+                    # Check if opponent manager have created teams
+                    opp_in_standings = any(s['Manager'] == opponent for s in standings)
+
+                    if not opp_in_standings:
+                        st.info(f"💡 You get a freebie, **{opponent}** has not created a team for this match.")
+                    else:
+                        # 2. Get Score Data from standings
+                        my_score = next(s['Score'] for s in standings if s['Manager'] == curr_user)
+                        opp_score = next(s['Score'] for s in standings if s['Manager'] == opponent)
+                        h2h_diff = my_score - opp_score
+
+                        if h2h_diff > 0:
+                            st.write(f"✅ You are currently leading **{opponent}** by **{h2h_diff}** pts!")
+                        elif h2h_diff < 0:
+                            st.write(f"📈 You are trailing **{opponent}** by **{abs(h2h_diff)}** pts.")
+                        else:
+                            st.write(f"⚖️ You and **{opponent}** are currently tied!")
+
+                        # 3. Structural Comparison (Mirroring your Path to #1 logic)
+                        target_data = get_sanitized_data(opponent)
+
+                        render_h2h(my_data, target_data, mult_picked_by, h2h_diff, diff_breaks, hide_multipliers)
 
             # --- Path to Top ---
             # Only calculate if there are at least two teams
@@ -402,8 +413,9 @@ def render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_
 
                 render_h2h(my_data, target_data, mult_picked_by, diff, diff_breaks, hide_multipliers)
     else:
-        if opponent is not None:
-            st.info(f"⚔️ **{opponent}** is your opponent for this match. Make sure to build a team to beat them!")
+        if len(opponents) > 0:
+            for opponent in opponents:
+                st.info(f"⚔️ **{opponent}** is your opponent for this match. Make sure to build a team to beat them!")
         else:
             st.info("🏝️ You have no opponents for this match.")
 

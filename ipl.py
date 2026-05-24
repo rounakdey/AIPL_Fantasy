@@ -329,8 +329,12 @@ with t1:
         header_round_text = "সন্ধি পুজো (Ban Round):"
     elif match_id in rounds['round8']:
         header_round_text = "নবমীর রাত (Half-Match Round):"
+    elif match_id in rounds['playoffs']:
+        header_round_text = "শুভ বিজয়া (Playoffs):"
     else:
         header_round_text = "পুজো আসছে:"
+    #elif match_id in rounds['final']:
+    #    header_round_text = "আসছে বছর আবার হবে (Final):"
 
     # Construct the full HTML string
     full_header_html = f"""
