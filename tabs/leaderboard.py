@@ -639,7 +639,7 @@ def render_final_strategy(h2h_row, ld, live_df, curr_user, team_standings):
             opp_player_weights = get_team_player_weights(opp_str)
             all_players = set(my_player_weights.keys()) | set(opp_player_weights.keys())
 
-            col_image, col_root, col_oppose = st.columns(3)
+            col_image, col_root, col_oppose = st.columns([3, 3.5, 3.5])
 
             with col_image:
                 diff_breaks = {
