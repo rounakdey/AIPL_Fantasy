@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 import pandas as pd
 from utils import rounds
@@ -472,3 +473,259 @@ def render_performance(match_id, ld, live_df, ban_registry):
         st.info(legend)
     else:
         st.info("Waiting for live match data to appear on Cricbuzz...")
+
+
+def parse_compound_team(team_string):
+    """
+    Parses a string like:
+    'Valar Morghulis (1) + Hattimatim Team (1) + MaushumiBhowmick (1)'
+    Returns a list of dicts: [{'manager': 'Valar Morghulis', 'weight': 1.0}, ...]
+    """
+    if not team_string or pd.isna(team_string):
+        return []
+
+    # Split the string by the '+' symbol
+    parts = team_string.split('+')
+    managers_list = []
+
+    for part in parts:
+        part = part.strip()
+        # Find the manager name and the weight inside the parenthesis
+        match = re.search(r'(.*?)\s*\((.*?)\)', part)
+        if match:
+            mgr_name = match.group(1).strip()
+            try:
+                weight = float(match.group(2).strip())
+            except ValueError:
+                weight = 1.0
+            managers_list.append({'manager': mgr_name, 'weight': weight})
+        else:
+            # Fallback if no parenthesis weight format found
+            if part:
+                managers_list.append({'manager': part, 'weight': 1.0})
+
+    return managers_list
+
+
+def render_final_standings(h2h_row, standings):
+    """
+    Computes and displays weighted composite standings for all 3 final teams
+    using the list returned by render_leaderboard.
+    """
+    st.subheader("🏆 Team Standings")
+
+    # 1. Map manager usernames to their pre-calculated scores from the leaderboard data
+    # Entries use "Manager" and "Score" keys based on the render_leaderboard structure
+    individual_scores = {}
+    for entry in standings:
+        mgr_name = entry.get('Manager')  # matches the dict key exactly
+        if mgr_name:
+            individual_scores[mgr_name] = entry.get('Score', 0)  # matches the dict key exactly
+
+    # 2. Extract Team Definitions from the schedule row (Supporting all 3 columns)
+    team_columns = [
+        h2h_row.get('Team1'),
+        h2h_row.get('Team2'),
+        h2h_row.get('Team3')
+    ]
+
+    final_rows = []
+    for t_str in team_columns:
+        # Gracefully handle empty slots or NaN cases if Team 3 is missing
+        if not t_str or pd.isna(t_str):
+            continue
+
+        parsed_mgrs = parse_compound_team(t_str)
+
+        weighted_score_sum = 0
+        weight_sum = 0
+
+        for item in parsed_mgrs:
+            mgr = item['manager']
+            w = item['weight']
+
+            # Fetch the pre-calculated score from the standings map
+            score = individual_scores.get(mgr, 0)
+
+            weighted_score_sum += score * w
+            weight_sum += w
+
+        final_team_score = int(weighted_score_sum / weight_sum) if weight_sum > 0 else 0
+
+        final_rows.append({
+            "Team": t_str,
+            "Score": final_team_score,
+        })
+
+    # Render a clean summary table ordered from highest to lowest score
+    team_standings = pd.DataFrame(final_rows).sort_values(by="Score", ascending=False)
+    st.table(team_standings)
+    return team_standings
+
+
+def render_final_strategy(h2h_row, ld, live_df, curr_user, team_standings):
+    """
+    Renders H2H comparisons pitting the logged-in manager's composite team
+    against the other remaining final opponent teams.
+    """
+
+    if not live_df.empty:
+        # 1. Collate and parse all active team cells
+        all_team_strings = [h2h_row.get('Team1'), h2h_row.get('Team2'), h2h_row.get('Team3')]
+        active_teams = [t for t in all_team_strings if t and not pd.isna(t)]
+
+        my_team_str = None
+        opponent_team_strings = []
+
+        for t_str in active_teams:
+            if curr_user in t_str:
+                my_team_str = t_str
+            else:
+                opponent_team_strings.append(t_str)
+
+        if not my_team_str:
+            st.warning(f"Could not locate manager '{curr_user}' inside any of the final team groups.")
+            return
+
+        # Map team strings to their scores from team_standings for quick lookup
+        score_map = {}
+        if team_standings is not None and not team_standings.empty:
+            score_map = dict(zip(team_standings['Team'], team_standings['Score']))
+        # Helper function to generate normalized composite weights for players inside a specific team string
+        def get_team_player_weights(team_string):
+            player_weights = {}
+            parsed_team_list = parse_compound_team(team_string)
+            total_team_weight = sum([item['weight'] for item in parsed_team_list])
+
+            for item in parsed_team_list:
+                mgr = item['manager']
+                w = item['weight']
+                mgr_team_data = ld.get(mgr, {"p": set(), "c": "-", "vc": "-"})
+
+                for player in mgr_team_data['p']:
+                    mult = 1.0
+                    if player == mgr_team_data['c']:
+                        mult = 2.0
+                    elif player == mgr_team_data['vc']:
+                        mult = 1.5
+
+                    player_weights[player] = player_weights.get(player, 0.0) + (w * mult)
+
+            if total_team_weight > 0:
+                for p in player_weights:
+                    player_weights[p] = round(player_weights[p] / total_team_weight, 2)
+            return player_weights
+
+        # Calculate my weights
+        my_player_weights = get_team_player_weights(my_team_str)
+        my_score = score_map.get(my_team_str, 0)
+
+        # 2. Build tactical comparison matrices for each opponent team group independently
+
+        for opp_str in opponent_team_strings:
+            st.subheader(f"⚔️ H2H Strategy: Path to beating {opp_str}")
+
+            # Extract scores and calculate live tracking metrics
+            opp_score = score_map.get(opp_str, 0)
+            h2h_diff = my_score - opp_score
+            if h2h_diff > 0:
+                st.write(f"✅ **You are currently leading** by **{h2h_diff}** pts!")
+            elif h2h_diff < 0:
+                st.write(
+                    f"📈 **You are trailing** by **{abs(h2h_diff)}** pts.")
+            else:
+                st.write(f"⚖️ **You are currently tied!**")
+
+            opp_player_weights = get_team_player_weights(opp_str)
+            all_players = set(my_player_weights.keys()) | set(opp_player_weights.keys())
+
+            col_image, col_root, col_oppose = st.columns(3)
+
+            with col_image:
+                diff_breaks = {
+                    'impossible1': -250, 'impossible2': -200, 'impossible3': -150,
+                    'behind1': -100, 'behind2': -75, 'behind3': -50, 'close_behind1': -25,
+                    'close_ahead2': 25, 'close_ahead1': 50,
+                    'ahead2': 75, 'ahead1': 100,
+                    'way_ahead2': 150, 'way_ahead1': 200
+                }
+                if h2h_diff < diff_breaks['impossible1']: st.image("images/impossible1.gif", width='stretch')
+                elif h2h_diff < diff_breaks['impossible2']: st.image("images/impossible2.gif", width='stretch')
+                elif h2h_diff < diff_breaks['impossible3']: st.image("images/impossible3.gif", width='stretch')
+                elif h2h_diff < diff_breaks['behind1']: st.image("images/behind1.gif", width='stretch')
+                elif h2h_diff < diff_breaks['behind2']: st.image("images/behind2.gif", width='stretch')
+                elif h2h_diff < diff_breaks['behind3']: st.image("images/behind3.gif", width='stretch')
+                elif h2h_diff < diff_breaks['close_behind1']: st.image("images/close_behind1.gif", width='stretch')
+                elif h2h_diff > diff_breaks['way_ahead1']: st.image("images/way_ahead1.gif", width='stretch')
+                elif h2h_diff > diff_breaks['way_ahead2']: st.image("images/way_ahead2.gif", width='stretch')
+                elif h2h_diff > diff_breaks['ahead1']: st.image("images/ahead1.gif", width='stretch')
+                elif h2h_diff > diff_breaks['ahead2']: st.image("images/ahead2.gif", width='stretch')
+                elif h2h_diff > diff_breaks['close_ahead1']: st.image("images/close_ahead1.gif", width='stretch')
+                elif h2h_diff > diff_breaks['close_ahead2']: st.image("images/close_ahead2.gif", width='stretch')
+                else: st.image("images/competitive1.gif", width='stretch')
+
+            with col_root:
+                st.success("📣 PLAYERS TO ROOT FOR")
+                my_advantages = []
+                for p in all_players:
+                    w_me = my_player_weights.get(p, 0.0)
+                    w_opp = opp_player_weights.get(p, 0.0)
+                    if w_me > w_opp:
+                        my_advantages.append({
+                            'Player': p,
+                            'Weight Difference': w_me - w_opp,
+                        })
+                if my_advantages:
+                    # Sort advantages descending by weight difference
+                    my_advantages = sorted(my_advantages, key=lambda x: x['Weight Difference'], reverse=True)
+                    for adv in my_advantages:
+                        p_name = adv['Player']
+                        diff = adv['Weight Difference']
+
+                        # Determine threshold icon
+                        if diff <= 0.75:
+                            icon = "✅"  # Minor advantage
+                        elif diff <= 1.0:
+                            icon = "🟢"  # Small/Standard advantage
+                        elif diff <= 1.5:
+                            icon = "🎖️"  # High tactical advantage
+                        else:
+                            icon = "⭐"  # Massive/Exclusive advantage
+
+                        st.write(f"{icon} **{p_name} (+{diff}x)**")
+                else:
+                    st.caption("You have no advantage over their team!")
+
+            with col_oppose:
+                st.error("🚫 PLAYERS TO OPPOSE")
+                opp_advantages = []
+                for p in all_players:
+                    w_me = my_player_weights.get(p, 0.0)
+                    w_opp = opp_player_weights.get(p, 0.0)
+                    if w_opp > w_me:
+                        opp_advantages.append({
+                            'Player': p,
+                            'Weight Difference': w_opp - w_me,
+                        })
+                if opp_advantages:
+                    # Sort danger spots descending by weight difference
+                    opp_advantages = sorted(opp_advantages, key=lambda x: x['Weight Difference'], reverse=True)
+                    for adv in opp_advantages:
+                        p_name = adv['Player']
+                        diff = adv['Weight Difference']
+
+                        # Determine threshold icon
+                        if diff <= 0.75:
+                            icon = "❌"  # Minor danger
+                        elif diff <= 1.0:
+                            icon = "🚨"  # Low-key danger
+                        elif diff <= 1.5:
+                            icon = "⚠️"  # High threat position
+                        else:
+                            icon = "💀"  # Maximum critical risk
+
+                        st.write(f"{icon} **{p_name} (+{diff}x)**")
+                else:
+                    st.caption("They have no advantage over your team!")
+    else:
+        st.info("⚔️ This is the Final of our Dugga Pujo! Make sure to build your team.")

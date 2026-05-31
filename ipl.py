@@ -362,11 +362,20 @@ with t1:
 
     st.divider()
 
-    # --- Path to Top and H2H Analysis ---
+    # --- Path to Top and H2H Analysis (And team totals for final) ---
     if st.session_state.logged_in:
         curr_user = st.session_state.username
         h2h_sched = utils.load_h2h_schedule()
-        render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_registry)
+        if match_id in rounds['final']:
+            from tabs.leaderboard import render_final_standings, render_final_strategy
+            final_h2h_row = h2h_sched[h2h_sched['Match'] == st.session_state.selected_idx + 1].iloc[0]
+            # Implement team score standings here.
+            team_standings = render_final_standings(final_h2h_row, standings)
+            # Implement final h2h strategy here (not sure if this function requires both standings and team_standings)
+            # There is no ban included for this match
+            render_final_strategy(final_h2h_row, ld, live_df, curr_user, team_standings)
+        else:
+            render_strategy(curr_user, h2h_sched, match_id, standings, ld, live_df, ban_registry)
 
     # --- Live Player Performances ---
     st.divider()
