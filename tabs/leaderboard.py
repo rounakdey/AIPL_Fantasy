@@ -683,16 +683,16 @@ def render_final_strategy(h2h_row, ld, live_df, curr_user, team_standings):
                         diff = adv['Weight Difference']
 
                         # Determine threshold icon
-                        if diff <= 0.75:
+                        if diff <= 0.20:
                             icon = "✅"  # Minor advantage
-                        elif diff <= 1.0:
+                        elif diff <= 0.30:
                             icon = "🟢"  # Small/Standard advantage
-                        elif diff <= 1.5:
+                        elif diff <= 0.50:
                             icon = "🎖️"  # High tactical advantage
                         else:
                             icon = "⭐"  # Massive/Exclusive advantage
 
-                        st.write(f"{icon} **{p_name} (+{diff}x)**")
+                        st.write(f"{icon} **{p_name} (+{round(diff, 2)}x)**")
                 else:
                     st.caption("You have no advantage over their team!")
 
@@ -715,16 +715,16 @@ def render_final_strategy(h2h_row, ld, live_df, curr_user, team_standings):
                         diff = adv['Weight Difference']
 
                         # Determine threshold icon
-                        if diff <= 0.75:
+                        if diff <= 0.20:
                             icon = "❌"  # Minor danger
-                        elif diff <= 1.0:
+                        elif diff <= 0.30:
                             icon = "🚨"  # Low-key danger
-                        elif diff <= 1.5:
+                        elif diff <= 0.50:
                             icon = "⚠️"  # High threat position
                         else:
                             icon = "💀"  # Maximum critical risk
 
-                        st.write(f"{icon} **{p_name} (+{diff}x)**")
+                        st.write(f"{icon} **{p_name} (+{round(diff, 2)}x)**")
                 else:
                     st.caption("They have no advantage over your team!")
     else:
